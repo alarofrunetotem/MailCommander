@@ -204,7 +204,7 @@ function addon:OnLoad(frame)
 	print("Running frame onload")
 	--MCF:EnableMouse(true)
 	--MCF:SetMovable(true)
-	frame.Send:SetText(L["Send all"])
+	frame.Send:SetText(L["Send All"])
 	frame.Send.tooltip="tooltip"
 	frame:RegisterForDrag("LeftButton")
 	frame.Items[1].ItemButton:RegisterForClicks("LeftButtonUp","RightButtonUp")

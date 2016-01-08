@@ -1,0 +1,21 @@
+## Interface: 60200
+## Title: MailCommander
+## Notes: Manages resource distribution between multiple toons
+## Author: Alar of Daggerspine
+## Version: @project-version@ 6.2.0
+## X-Revision: @project-abbreviated-hash@
+## eMail: alar@aspide.it
+## URL: http://wow.aspide.it
+## OptionalDeps: Ace3,LibInit
+## DefaultState: Enabled
+## SavedVariables: dbMAC
+## X-ID: MAC
+## X-Database:dbMAC
+## X-Category: Mail
+## X-License: GPL v3
+## X-eMail: alar@aspide.it
+## X-Date: @project-date-iso@
+## X-Embeds: LibInit
+embeds.xml
+localization.lua
+MailCommander.xml

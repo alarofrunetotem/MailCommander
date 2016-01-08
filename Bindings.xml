@@ -1,0 +1,5 @@
+<Bindings>
+<Binding name="MCConfig" header="MAILCOMMANDER" category="ADDONS">
+	MailCommander:OpenConfig()
+</Binding>
+</Bindings>

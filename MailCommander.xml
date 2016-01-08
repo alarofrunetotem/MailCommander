@@ -1,0 +1,228 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	<Script file="MailCommander.lua"/>
+	<Button name="MailCommanderItemButtonTemplate" virtual="true" inherits="ItemButtonTemplate">
+		<!-- <CheckedTexture alphaMode="ADD" file="Interface\Buttons\CheckButtonHilight"/> -->
+		<!--<HighlightTexture file="Interface\PaperDollInfoFrame\UI-GearManager-LeaveItem-Transparent"/>-->
+	</Button>
+	<Frame name="MailCommanderItemTemplate" virtual="true">
+		<Size x="153" y="64"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="SlotTexture" file="Interface\Buttons\UI-EmptySlot">
+					<Size x="64" y="64"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" x="-13" y="13"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="NameFrame" file="Interface\MerchantFrame\UI-Merchant-LabelSlots">
+					<Size x="128" y="64"/>
+					<Anchors>
+						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-9" y="-10"/>
+					</Anchors>
+				</Texture>
+				<FontString parentKey="Name" inherits="GameFontNormalSmall" text="Item Name" justifyH="LEFT">
+					<Size x="100" y="30"/>
+					<Anchors>
+						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-5" y="7"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Frames>
+			<Button parentKey="ItemButton" inherits="MailCommanderItemButtonTemplate">
+				<Anchors>
+					<Anchor point="CENTER" relativekey="$parent.SlotTexture" x="0" y="0"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:OnItemClicked(self,button)
+					</OnClick>
+					<OnEnter >
+						MailCommander:OnItemEnter(self,button)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+					<OnHide>
+					print("OnHide")
+					</OnHide>
+					<OnReceiveDrag>
+						MailCommander:OnItemDropped(self)
+					</OnReceiveDrag>
+				</Scripts>
+			</Button>
+		</Frames>
+		<Scripts>
+			<OnEnter>
+				print("OnEnter",self:GetName(), motion);
+			</OnEnter>
+			<OnLeave>
+				MailCommander:CloseTip()
+			</OnLeave>
+		</Scripts>
+	</Frame>
+	<Frame name="MailCommander" virtual="true" toplevel="true" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="PortraitFrameTemplate"><!-- inherits="ButtonFrameTemplate">-->
+		<Size x="336" y="444"/>
+		<Layers>
+			<Layer level="BORDER">
+				<FontString parentKey="NameText" inherits="GameFontNormal" text="MailCommander">
+					<Anchors>
+						<Anchor point="TOP" relativeTo="$parent" relativePoint="TOP" x="0" y="-5"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="PageText" inherits="GameFontNormal" text="Page">
+					<Size x="104" y="0"/>
+					<Anchors>
+						<Anchor point="BOTTOM" x="0" y="10"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Frames>
+			<Button parentKey="Help" inherits="MainMenuBarMicroButton" hidden="false">
+				<Size x="32" y="64" />
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPRIGHT" x="0" y="26"/>
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						MailCommander:OnHelpEnter(self)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+					<OnLoad>
+						self:SetNormalTexture("Interface\\Buttons\\UI-MicroButton-MainMenu-Up");
+						self:SetPushedTexture("Interface\\Buttons\\UI-MicroButton-MainMenu-Up");
+						self:SetDisabledTexture("Interface\\Buttons\\UI-MicroButton-MainMenu-Up");
+					</OnLoad>
+				</Scripts>
+			</Button>
+			<Frame parentArray="Items" inherits="MailCommanderItemTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" x="10" y="-60"/>
+				</Anchors>
+			</Frame>
+			<Button parentKey="PrevPageButton">
+				<Size x="32" y="32"/>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="25" y="20"/>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<FontString parentKey="Text" inherits="GameFontNormal" justifyH="LEFT" text="PREV">
+							<Anchors>
+								<Anchor point="LEFT" relativeKey="$parent.PrevPageButton" relativePoint="RIGHT"/>
+							</Anchors>
+						</FontString>
+						<Texture file="Interface\Buttons\UI-PageButton-Background">
+							<Size x="32" y="32"/>
+							<Anchors>
+								<Anchor point="CENTER" x="0" y="1"/>
+							</Anchors>
+						</Texture>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnClick>
+						DevTools_Dump(MailCommander.db.factionrealm.requests)
+						MailCommander:OnArrowsClick(self,'prev')
+					</OnClick>
+				</Scripts>
+				<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Up"/>
+				<PushedTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Down"/>
+				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Disabled"/>
+				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+			</Button>
+			<Button parentKey="NextPageButton">
+				<Size x="32" y="32"/>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="310" y="20"/>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<FontString parentKey="Text" inherits="GameFontNormal" justifyH="RIGHT" text="NEXT">
+							<Anchors>
+								<Anchor point="RIGHT" relativeKey="$parent.NextPageButton" relativePoint="LEFT" x="-3" y="0"/>
+							</Anchors>
+						</FontString>
+						<Texture file="Interface\Buttons\UI-PageButton-Background">
+							<Size x="32" y="32"/>
+							<Anchors>
+								<Anchor point="CENTER" x="0" y="1"/>
+							</Anchors>
+						</Texture>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnClick>
+						DevTools_Dump(MailCommander.db.factionrealm.disabled)
+						MailCommander:OnArrowsClick(self,'next')
+					</OnClick>
+				</Scripts>
+				<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Up"/>
+				<PushedTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Down"/>
+				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
+				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+			</Button>
+			<Button name="$parentTab1" inherits="CharacterFrameTabButtonTemplate" id="1" text="NEED">
+				<Anchors>
+					<Anchor point="CENTER" relativePoint="BOTTOMLEFT" x="50" y="-15"/>
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						local L=MailCommander:GetLocale()
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText(L["My needs. Drag item you want to receive on this toon"], 1.0,1.0,1.0 );
+					</OnEnter>
+					<OnLeave function="GameTooltip_Hide"/>
+					<OnClick>
+						MailCommander:OnTabClick(self)
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2" text="SEND_LABEL">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT" x="-16" y="0"/>
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						local L=MailCommander:GetLocale()
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText(L["What other people need\nChecked items can be automatically sent"], 1.0,1.0,1.0 );
+					</OnEnter>
+					<OnLeave function="GameTooltip_Hide"/>
+					<OnClick>
+						MailCommander:OnTabClick(self,button)
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Frame parentKey="Filter" name="$parentFilter" inherits="UIDropDownMenuTemplate" enableMouse="true">
+				<Anchors>
+					<Anchor point="TOPLEFT" x="0" y="-28"/>
+				</Anchors>
+			</Frame>
+			<Button parentKey="Send" inherits="UIPanelButtonTemplate" text="SEND_LABEL">
+				<Size x="120" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-15" y="-28"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:OnSendClick(self,button)
+					</OnClick>
+				</Scripts>
+			</Button>
+		</Frames>
+		<Scripts>
+			<OnLoad>
+				MailCommander:OnLoad(self)
+			</OnLoad>
+			<OnReceiveDrag>
+			</OnReceiveDrag>
+			<OnMouseWheel>
+			</OnMouseWheel>
+		</Scripts>
+	</Frame>
+</Ui>

@@ -1,4 +1,4 @@
-package-as: BulkerMailCommander
+package-as: MailCommander
 enable-nolib-creation: no
 
 externals:
@@ -11,11 +11,7 @@ externals:
 		
 	libs/LibItemUpgradeInfo-1.0:
 		url: git://git.wowace.com/wow/libitemupgradeinfo-1-0/mainline.git
-		tag: latest		
-
-manual-changelog:
-		filename: CHANGELOG.txt
-		markup-type: textile
+		tag: latest
 
 ignore:
 - .buildpath

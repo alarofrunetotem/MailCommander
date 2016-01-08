@@ -488,7 +488,6 @@ function addon:OnItemClicked(itemButton,button)
 			--@end-debug@
 			end
 		elseif button=="RightButton" then
-			--@debug@
 			for i,d in ipairs(db.requests[currentRequester]) do
 				if d.i==itemId then
 					tremove(db.requests[currentRequester],i)

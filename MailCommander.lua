@@ -388,7 +388,7 @@ function addon:OnHelpEnter(this)
 		tip:AddLine(L["Mail Commander bulk mail sending"])
 		tip:AddLine(L["From this panel you can send requested items"])
 		tip:AddLine(L["Items that you dont have are not shown"])
-		tip:AddLine(format(L["Use %s button to send all items at once (max %d items at a time)"],L["Send All"],ATTACHMENTS_MAX_SEND))
+		tip:AddLine(format(L["Use \"%s\" button to send all items at once (max %d items at a time)"],L["Send All"],ATTACHMENTS_MAX_SEND))
 	end
 
 	tip:Show()

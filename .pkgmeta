@@ -1,4 +1,4 @@
-package-as: MailCommander
+package-as: BulkerMailCommander
 enable-nolib-creation: no
 
 externals:

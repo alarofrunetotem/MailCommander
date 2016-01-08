@@ -1,12 +1,13 @@
 ## Interface: 60200
 ## Title: MailCommander
-## Notes: Manages resource distribution between multiple toons
+## Notes: Manages items distribution between multiple toons
+## Notes-itIT: Gestisce la distribuzione di oggetti fra personaggi multipli
 ## Author: Alar of Daggerspine
 ## Version: @project-version@ 6.2.0
 ## X-Revision: @project-abbreviated-hash@
 ## eMail: alar@aspide.it
 ## URL: http://wow.aspide.it
-## OptionalDeps: Ace3,LibInit
+## OptionalDeps: Ace3,LibInit,LibItemUpgradeInfo-1.0
 ## DefaultState: Enabled
 ## SavedVariables: dbMAC
 ## X-ID: MAC
@@ -15,7 +16,7 @@
 ## X-License: GPL v3
 ## X-eMail: alar@aspide.it
 ## X-Date: @project-date-iso@
-## X-Embeds: LibInit
+## X-Embeds: LibInit, LibItemUpgradeInfo-1.0,Ace3
 embeds.xml
 localization.lua
 MailCommander.xml

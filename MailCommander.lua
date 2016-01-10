@@ -14,7 +14,16 @@ local addon=LibStub("LibInit"):NewAddon("MailCommander","AceHook-3.0","AceEvent-
 local C=addon:GetColorTable()
 local L=addon:GetLocale()
 local I=LibStub("LibItemUpgradeInfo-1.0")
-local slots=16
+local fakeLdb={
+	type = "data source",
+	label = me,
+	text=QUEUED_STATUS_WAITING,
+	category = "Interface",
+	icon="Interface\\MailFrame\\Mail-Icon",
+}
+local LDB=LibStub:GetLibrary("LibDataBroker-1.1",true)
+local ldb= LDB and LDB:NewDataObject(me,fakeLdb) or fakeLdb --#ldb
+local icon = LibStub("LibDBIcon-1.0",true)
 
 -- upvalues
 local SetItemButtonTexture,UIDropDownMenu_AddButton=SetItemButtonTexture,UIDropDownMenu_AddButton
@@ -31,7 +40,9 @@ local PanelTemplates_DisableTab,PanelTemplates_EnableTab=PanelTemplates_DisableT
 local minibag="Interface\\PaperDollInfoFrame\\UI-GearManager-ItemIntoBag"
 local undo="Interface\\PaperDollInfoFrame\\UI-GearManager-Undo"
 local ignore="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Opaque"
+local ignore2="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent"
 -- locals
+local slots=16
 local db
 local mcf
 local INEED=1
@@ -40,9 +51,40 @@ local currentRequester
 local currentReceiver
 local lastReceiver
 local currentTab=0
+local dirty=false
+local sendable={} -- For each toon, it's true if the current one has at least one object to send
+-- ldb extension
+function ldb:Update()
+	local shouldsend
+	for name,data in pairs(db.toons) do
+		if sendable[name] then
+			shouldsend=true
+			break
+		end
+	end
+	if shouldsend then
+		self.icon:SetVertexColor(1,0,0)
+	else
+		self.icon:SetVertexColor(0,1,0)
+	end
+
+end
+function ldb:OnClick(button)
+	addon:OpenConfig(tab)
+	print(this,button)
+end
+function ldb:OnTooltipShow(...)
+	self:AddLine(L["You have items to send to these characters:"])
+	for name,data in pairs(db.toons) do
+		if sendable[name] then
+			self:AddLine(name)
+		end
+	end
+end
+
 --addon:SetCustomEnvironment(ns)
 function addon:SetDbDefaults(default)
-	default['factionrealm']={
+	default.factionrealm={
 		toons={
 			['**']={}
 		},
@@ -61,6 +103,7 @@ function addon:SetDbDefaults(default)
 		},
 		lastReceiver=NONE
 	}
+	default.profile.ldb={hide=false}
 end
 local function IsDisabled(itemid)
 	if not itemid then return false end
@@ -99,7 +142,7 @@ local function AddButton(i,data)
 			frame.Name:SetText(data.l)
 			SetItemButtonDesaturated(frame.ItemButton,IsDisabled(data.i))
 			if currentTab==ISEND then
-				local count=GetItemCount(data.it,false,false)
+				local count=GetItemCount(data.i,false,false)
 				SetItemButtonCount(frame.ItemButton,count)
 			else
 				SetItemButtonCount(frame.ItemButton)
@@ -137,6 +180,10 @@ function addon:StoreData()
 	db.toons[ns.me][ns.class]=ns.localizedClass .. "(" .. UnitLevel("player") ..")"
 	currentRequester=GetUnitName("player")
 	currentReceiver=db.lastReceiver or NONE
+	print(icon)
+	if icon then
+		icon:Register(me,ldb,self.db.profile.ldb)
+	end
 end
 function addon:OnInitialized()
 	--AltoholicDB.profileKeys
@@ -151,6 +198,7 @@ function addon:OnInitialized()
 	self:RegisterEvent("MAIL_INBOX_UPDATE",print)
 	self:RegisterEvent("MAIL_SEND_SUCCESS","MailEvent")
 	self:RegisterEvent("MAIL_FAILED","MailEvent")
+	self:RegisterEvent("BAG_UPDATE_DELAYED",function(...) dirty=true end)
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
 	self:SecureHookScript(_G.InboxFrame,"OnShow",print)
 	self:HookScript(_G.SendMailFrame,"OnHide","CloseChooser")
@@ -183,7 +231,8 @@ function addon:OpenConfig(tab)
 end
 function addon:OpenSender(tab)
 	ShowUIPanel(MailFrame);
-	if ( not MailFrame:IsShown() ) then
+	MailFrameTab_OnClick(MailFrame,2)
+	if ( not SendMailFrame:IsShown() ) then
 		CloseMail();
 		return;
 	end
@@ -201,6 +250,7 @@ function addon:CloseChooser()
 end
 function addon:OnLoad(frame)
 	mcf=frame
+	frame:SetClampedToScreen()
 	print("Running frame onload")
 	--MCF:EnableMouse(true)
 	--MCF:SetMovable(true)
@@ -219,6 +269,15 @@ function addon:OnLoad(frame)
 	--@end-debug@
 	PanelTemplates_SetNumTabs(frame, 2);
 	PanelTemplates_SetTab(frame, 1);
+	local texture=mcf:CreateTexture(nil,"BACKGROUND")
+	--texture:SetTexture("Interface\\QuestFrame\\QuestBG")
+	texture:SetTexture("Interface\\MailFrame\\UI-MailFrameBG",false)
+	texture:SetPoint("TOP",0,-20)
+	texture:SetPoint("BOTTOM",0,33)
+	texture:SetPoint("LEFT",0,0)
+	texture:SetPoint("RIGHT",0,0)
+	texture:SetTexCoord(0,0.6,0,0.7)
+
 end
 function addon:GetFilter()
 	if currentTab==INEED then
@@ -240,6 +299,29 @@ function addon:SetFilter(info,name)
 	UIDropDownMenu_SetText(mcf.Filter,name)
 	self:UpdateMailCommanderFrame()
 end
+function addon:RefreshSendable()
+	if dirty then
+		wipe(sendable)
+		for name,_ in pairs(db.requests) do
+			for _,d in ipairs(db.requests[name]) do
+				local count=GetItemCount(d.i)
+				if count and count > 0 then
+					sendable[name]=true
+					break
+				end
+			end
+		end
+		for name,_ in pairs(db.friends) do
+			for _,d in ipairs(db.requests[name]) do
+				local count=GetItemCount(d.i)
+				if count and count > 0 then
+					sendable[name]=true
+					break
+				end
+			end
+		end
+	end
+end
 function addon:InitializeDropDown()
 	local mcf=MailCommanderFrame
 	local info = UIDropDownMenu_CreateInfo();
@@ -250,6 +332,7 @@ function addon:InitializeDropDown()
 	UIDropDownMenu_SetText(mcf.Filter,current)
 	local padding
 	if currentTab==ISEND then
+		addon:RefreshSendable()
 		info.text="Alts"
 		info.isTitle=true
 		info.notCheckable=true
@@ -263,22 +346,24 @@ function addon:InitializeDropDown()
 	for name,data in pairs(db.toons) do
 		if currentTab==INEED or name~=ns.me then
 			if next(data)~=nil then
-				info.checked=current == name
-				info.arg1=name
-				info.tooltipTitle="Professions"
-				info.tooltipText=""
-				info.tooltipOnButton=true
-				info.leftPadding=padding
-				info.text=name
-				for n,l in pairs(data) do
-					if tonumber(n) then
-						info.tooltipText=info.tooltipText .. l .. "\n"
-					else
-						info.colorCode="|c".._G.RAID_CLASS_COLORS[n].colorStr
-						info.text=name .. " " .. l
+				if currentTab==INEED or sendable[name] then
+					info.checked=current == name
+					info.arg1=name
+					info.tooltipTitle=TRADE_SKILLS
+					info.tooltipText=""
+					info.tooltipOnButton=true
+					info.leftPadding=padding
+					info.text=name
+					for n,l in pairs(data) do
+						if tonumber(n) then
+							info.tooltipText=info.tooltipText .. l .. "\n"
+						else
+							info.colorCode="|c".._G.RAID_CLASS_COLORS[n].colorStr
+							info.text=name .. " " .. l
+						end
 					end
+					UIDropDownMenu_AddButton(info);
 				end
-				UIDropDownMenu_AddButton(info);
 			end
 		end
 	end
@@ -293,18 +378,20 @@ function addon:InitializeDropDown()
 		info.isTitle=nil
 		info.disabled=nil
 		for name,data in pairs(db.friends) do
-			info.checked=current == name
-			info.arg1=name
-			info.tooltipTitle="Professions"
-			info.tooltipText=""
-			info.tooltipOnButton=true
-			info.leftPadding=padding
-			for n,l in pairs(professions) do
-				info.tooltipText=info.tooltipText .. n .. " (" .. l ..")\n"
+			if sendable[name] then
+				info.checked=current == name
+				info.arg1=name
+				info.tooltipTitle="Professions"
+				info.tooltipText=""
+				info.tooltipOnButton=true
+				info.leftPadding=padding
+				for n,l in pairs(professions) do
+					info.tooltipText=info.tooltipText .. n .. " (" .. l ..")\n"
+				end
+				info.text=name
+				info.colorCode="|cff808000",
+				UIDropDownMenu_AddButton(info);
 			end
-			info.text=name
-			info.colorCode="|cff808000",
-			UIDropDownMenu_AddButton(info);
 		end
 	end
 end
@@ -365,14 +452,14 @@ function addon:RenderButtonList(store,page)
 		mcf.NextPageButton.Text:SetTextColor(C.Silver())
 	end
 end
-function addon:RederNeedBox()
+function addon:RenderNeedBox()
 	mcf.Send:Hide()
 	local toon=self:GetFilter()
 	print("Filter is",toon)
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
 end
-function addon:RederSendBox()
+function addon:RenderSendBox()
 	mcf.Send:Show()
 	local toon=self:GetFilter()
 	self:RenderButtonList(db.requests[toon])
@@ -439,10 +526,10 @@ function addon:OnSendClick(this,button)
 		SendMail(currentReceiver,header,body)
 		this:Disable()
 	end
-	self:UpdateMailCommanderFrame()
 end
 function addon:MailEvent(event)
 	mcf.Send:Enable()
+	self:UpdateMailCommanderFrame()
 end
 function addon:CanSendMail()
 	if not SendMailFrame:IsVisible() then
@@ -456,12 +543,11 @@ function addon:OnItemClicked(itemButton,button)
 	if not itemId then return end
 	if currentTab==ISEND then
 		if (button=="LeftButton") then
-			db.disabled[itemId][ns.me][currentReceiver]=db.disabled[itemId][ns.me][currentReceiver] and nil or true
+			db.disabled[itemId][ns.me][currentReceiver]=not db.disabled[itemId][ns.me][currentReceiver]
 		elseif button=="RightButton" then
 			if not self:CanSendMail() then
 				return
 			end
-			--@debug@
 			for bagId=0,NUM_BAG_SLOTS do
 				for slotId=1,GetContainerNumSlots(bagId) do
 					if compare(GetContainerItemID(bagId,slotId),itemId) then
@@ -475,8 +561,6 @@ function addon:OnItemClicked(itemButton,button)
 			end
 			--PickupContainerItem(1,4)
 			--ClickSendMailItemButton(1)
-			print("Will try to send this")
-			--@end-debug@
 		end
 	else
 		if button=="LeftButton" then
@@ -507,8 +591,12 @@ function addon:OnItemEnter(itemButton,motion)
 		local enabled=not IsDisabled(itemId)
 		local color1=C.Azure
 		local color2=enabled and RED_FONT_COLOR or GREEN_FONT_COLOR
-		GameTooltip:AddDoubleLine(KEY_BUTTON1,enabled and "Disable" or "Enable",color1.r,color1.g,color1.b,color2.r,color2.g,color2.b)
+		GameTooltip:AddDoubleLine(KEY_BUTTON1,enabled and DISABLE or ENABLE,color1.r,color1.g,color1.b,color2.r,color2.g,color2.b)
 		if currentTab==INEED then
+			GameTooltip:AddDoubleLine("",L["Disabled items will not appear in send window"])
+			GameTooltip:AddDoubleLine(KEY_BUTTON2,REMOVE,color1.r,color1.g,color1.b,RED_FONT_COLOR.r,RED_FONT_COLOR.g,RED_FONT_COLOR.b)
+		else
+			GameTooltip:AddDoubleLine("",format(L["Disabled items are not sent with \"%s\" button"],L["Send All"]))
 			GameTooltip:AddDoubleLine(KEY_BUTTON2,"Remove",color1.r,color1.g,color1.b,RED_FONT_COLOR.r,RED_FONT_COLOR.g,RED_FONT_COLOR.b)
 		end
 		GameTooltip:AddDoubleLine("Id:",itemId)
@@ -535,9 +623,9 @@ function addon:OnTabClick(tab)
 end
 function addon:UpdateMailCommanderFrame()
 	if mcf.selectedTab==1 then
-		addon:RederNeedBox(mcf)
+		addon:RenderNeedBox(mcf)
 	elseif mcf.selectedTab==2 then
-		addon:RederSendBox(mcf)
+		addon:RenderSendBox(mcf)
 	else
 --@debug@
 		print("Invalid tab",mcf.selectedTab)
@@ -578,6 +666,38 @@ function addon:Reset(input,...)
 			function() end
 		)
 end
+
+--[[
+local addon = LibStub("AceAddon-3.0"):NewAddon("Bunnies", "AceConsole-3.0")
+local bunnyLDB = LibStub("LibDataBroker-1.1"):NewDataObject("Bunnies!", {
+	type = "data source",
+	text = "Bunnies!",
+	icon = "Interface\\Icons\\INV_Chest_Cloth_17",
+	OnClick = function() print("BUNNIES ARE TAKING OVER THE WORLD") end,
+})
+
+function addon:OnInitialize()
+	-- Obviously you'll need a ## SavedVariables: BunniesDB line in your TOC, duh!
+	self.db = LibStub("AceDB-3.0"):New("BunniesDB", {
+		profile = {
+			minimap = {
+				hide = false,
+			},
+		},
+	})
+	icon:Register("Bunnies!", bunnyLDB, self.db.profile.minimap)
+	self:RegisterChatCommand("bunnies", "CommandTheBunnies")
+end
+
+function addon:CommandTheBunnies()
+	self.db.profile.minimap.hide = not self.db.profile.minimap.hide
+	if self.db.profile.minimap.hide then
+		icon:Hide("Bunnies!")
+	else
+		icon:Show("Bunnies!")
+	end
+end
+--]]
 _G.MailCommander=addon
 -- Key Bindings Names
 _G.BINDING_HEADER_MAILCOMMANDER="MailCommander"

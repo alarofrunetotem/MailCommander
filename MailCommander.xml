@@ -65,6 +65,7 @@
 	<Frame name="MailCommander" virtual="true" toplevel="true" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="PortraitFrameTemplate"><!-- inherits="ButtonFrameTemplate">-->
 		<Size x="336" y="444"/>
 		<Layers>
+
 			<Layer level="BORDER">
 				<FontString parentKey="NameText" inherits="GameFontNormal" text="MailCommander">
 					<Anchors>
@@ -219,6 +220,11 @@
 			<OnLoad>
 				MailCommander:OnLoad(self)
 			</OnLoad>
+			<OnSHow>
+				if not SendMailFrame:IsVisible() then
+					PanelTemplates_DisableTab(self,2)
+				end
+			</OnSHow>
 			<OnReceiveDrag>
 			</OnReceiveDrag>
 			<OnMouseWheel>

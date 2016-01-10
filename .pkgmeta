@@ -13,6 +13,9 @@ externals:
 	libs/LibItemUpgradeInfo-1.0:
 		url: git://git.wowace.com/wow/libitemupgradeinfo-1-0/mainline.git
 
+	libs/LibDBIcon-1.0:
+		url: svn://svn.wowace.com/wow/libdbicon-1-0/mainline/trunk
+
 ignore:
 - .buildpath
 - .project

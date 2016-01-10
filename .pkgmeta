@@ -14,7 +14,7 @@ externals:
     url: git://git.wowace.com/wow/libitemupgradeinfo-1-0/mainline.git
 
 ignore:
-- .buildpath
-- .project
-- Debug.lua
-- info.txt
+  - .buildpath
+  - .project
+  - Debug.lua
+  - info.txt

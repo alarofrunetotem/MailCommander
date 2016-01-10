@@ -197,9 +197,7 @@ function addon:StoreData()
 end
 function addon:OnInitialized()
 	--AltoholicDB.profileKeys
---@alpha@
-	self:Popup("MailCommander\nALPHA version for internal use...\nUse at your risk")
---@end-alpha@
+	self:Popup("MailCommander\n EARLY BETA version for internal use...\nUse at your risk")
 	if not GameTooltip then GameTooltip=CreateFrame("GameTooltip", "MailCommanderTooltip", UIParent, "GameTooltipTemplate") end
 	print("Running oninit")
 	db=self.db.factionrealm

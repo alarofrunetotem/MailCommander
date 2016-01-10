@@ -17,12 +17,15 @@ local I=LibStub("LibItemUpgradeInfo-1.0")
 local fakeLdb={
 	type = "data source",
 	label = me,
-	text=QUEUED_STATUS_WAITING,
+	text=L["Nothing to send"],
 	category = "Interface",
 	icon="Interface\\MailFrame\\Mail-Icon",
+	iconR=1,
+	iconG=1,
+	iconB=1,
 }
 local LDB=LibStub:GetLibrary("LibDataBroker-1.1",true)
-local ldb= LDB and LDB:NewDataObject(me,fakeLdb) or fakeLdb --#ldb
+local ldb= LDB:NewDataObject(me,fakeLdb) --#ldb
 local icon = LibStub("LibDBIcon-1.0",true)
 
 -- upvalues
@@ -51,34 +54,40 @@ local currentRequester
 local currentReceiver
 local lastReceiver
 local currentTab=0
-local dirty=false
+local dirty=true
+local shouldsend
 local sendable={} -- For each toon, it's true if the current one has at least one object to send
 -- ldb extension
 function ldb:Update()
-	local shouldsend
+	local oldshouldsend
 	for name,data in pairs(db.toons) do
 		if sendable[name] then
 			shouldsend=true
 			break
 		end
 	end
---[[
-	if shouldsend then
-		self.icon:SetVertexColor(1,0,0)
-	else
-		self.icon:SetVertexColor(0,1,0)
+	if oldshouldsend ~= shouldsend then
+		ldb.text=shouldsend and L["You have items to send"] or L["Nothing to send"]
+		local button =icon:GetMinimapButton(me)
+		if shouldsend then
+			button.icon:SetVertexColor(0,1,0)
+		else
+			button.icon:SetVertexColor(1,0,0)
+		end
 	end
---]]
 end
 function ldb:OnClick(button)
-	addon:OpenConfig(tab)
-	print(this,button)
+	addon:OpenConfig()
 end
 function ldb:OnTooltipShow(...)
-	self:AddLine(L["You have items to send to these characters:"])
-	for name,data in pairs(db.toons) do
-		if sendable[name] then
-			self:AddLine(name)
+	if not shouldsend then
+		self:AddLine(L["Nothing to send"])
+	else
+		self:AddLine(L["Items ready for:"])
+		for name,data in pairs(db.toons) do
+			if sendable[name] and name~=ns.me then
+				self:AddLine(name,1,1,1)
+			end
 		end
 	end
 end
@@ -189,7 +198,7 @@ end
 function addon:OnInitialized()
 	--AltoholicDB.profileKeys
 --@alpha@
-	self:Popup("MailCommander ALPHA version for internal use... use at your risk")
+	self:Popup("MailCommander\nALPHA version for internal use...\nUse at your risk")
 --@end-alpha@
 	if not GameTooltip then GameTooltip=CreateFrame("GameTooltip", "MailCommanderTooltip", UIParent, "GameTooltipTemplate") end
 	print("Running oninit")
@@ -211,6 +220,7 @@ function addon:OnInitialized()
 	--@debug@
 	self:ScheduleTimer("OpenConfig",3)
 	--@end-debug@
+	self:ScheduleRepeatingTimer("RefreshSendable",10)
 end
 function addon:CheckTab(event)
 	if event =="MAIL_SHOW" then
@@ -304,7 +314,7 @@ function addon:SetFilter(info,name)
 	self:UpdateMailCommanderFrame()
 end
 function addon:RefreshSendable()
-	if dirty then
+	if dirty and not InCombatLockdown() then
 		wipe(sendable)
 		for name,_ in pairs(db.requests) do
 			for _,d in ipairs(db.requests[name]) do
@@ -324,6 +334,8 @@ function addon:RefreshSendable()
 				end
 			end
 		end
+		dirty=false
+		ldb:Update()
 	end
 end
 function addon:InitializeDropDown()

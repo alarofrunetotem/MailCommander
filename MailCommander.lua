@@ -62,12 +62,13 @@ function ldb:Update()
 			break
 		end
 	end
+--[[
 	if shouldsend then
 		self.icon:SetVertexColor(1,0,0)
 	else
 		self.icon:SetVertexColor(0,1,0)
 	end
-
+--]]
 end
 function ldb:OnClick(button)
 	addon:OpenConfig(tab)
@@ -187,6 +188,9 @@ function addon:StoreData()
 end
 function addon:OnInitialized()
 	--AltoholicDB.profileKeys
+--@alpha@
+	self:Popup("MailCommander ALPHA version for internal use... use at your risk")
+--@end-alpha@
 	if not GameTooltip then GameTooltip=CreateFrame("GameTooltip", "MailCommanderTooltip", UIParent, "GameTooltipTemplate") end
 	print("Running oninit")
 	db=self.db.factionrealm

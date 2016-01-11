@@ -4,7 +4,8 @@ enable-nolib-creation: no
 required-dependencies:
 - datastore
 - datastore_characters
-- datastore_inventory
+- datastore_crafts
+- datastore_containers
 
 externals:
 	libs/LibInit:

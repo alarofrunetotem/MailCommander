@@ -1,6 +1,11 @@
 package-as: MailCommander
 enable-nolib-creation: no
 
+required-dependencies:
+- datastore
+- datastore_characters
+- datastore_inventory
+
 externals:
 	libs/LibInit:
 		url: git://git.curseforge.net/wow/libinit/mainline.git/LibInit

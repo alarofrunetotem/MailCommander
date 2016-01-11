@@ -2,7 +2,6 @@ local me,ns=...
 --@debug@
 --Postal_BlackBookButton
 -- SendMailNameEditBox
-local GameTooltip
 LoadAddOn("Blizzard_DebugTools")
 LoadAddOn("LibDebug")
 if LibDebug then LibDebug() end
@@ -57,6 +56,7 @@ local currentTab=0
 local dirty=true
 local shouldsend
 local sendable={} -- For each toon, it's true if the current one has at least one object to send
+local toonTable={} -- precaculated toon table for initDropDown to avoid bursting memory
 -- ldb extension
 function ldb:Update()
 	local oldshouldsend
@@ -81,12 +81,12 @@ function ldb:OnClick(button)
 end
 function ldb:OnTooltipShow(...)
 	if not shouldsend then
-		self:AddLine(L["Nothing to send"])
+		self:AddLine(L["Nothing to send"],C:Silver())
 	else
-		self:AddLine(L["Items ready for:"])
+		self:AddLine(L["Items ready for:"],C:Green())
 		for name,data in pairs(db.toons) do
 			if sendable[name] and name~=ns.me then
-				self:AddLine(name,1,1,1)
+				self:AddLine(name,C[data.class]())
 			end
 		end
 	end
@@ -96,7 +96,8 @@ end
 function addon:SetDbDefaults(default)
 	default.factionrealm={
 		toons={
-			['**']={}
+			['*']= -- char name (no realm,no faction)
+				{}
 		},
 		friends={
 			['**']={}
@@ -151,12 +152,8 @@ local function AddButton(i,data)
 			SetItemButtonTexture(frame.ItemButton,data.t)
 			frame.Name:SetText(data.l)
 			SetItemButtonDesaturated(frame.ItemButton,IsDisabled(data.i))
-			if currentTab==ISEND then
-				local count=GetItemCount(data.i,false,false)
-				SetItemButtonCount(frame.ItemButton,count)
-			else
-				SetItemButtonCount(frame.ItemButton)
-			end
+			local count=GetItemCount(data.i,false,false)
+			SetItemButtonCount(frame.ItemButton,count)
 		else
 			frame.ItemButton:SetAttribute("itemlink",nil)
 			SetItemButtonTexture(frame.ItemButton,nil)
@@ -173,52 +170,83 @@ local function AddButton(i,data)
 		frame:Show()
 end
 function addon:CloseTip()
-	if GameTooltip then GameTooltip:Hide() end
+	if _G.GameTooltip then GameTooltip:Hide() end
 end
-function addon:StoreData()
+function addon:InitData()
 	local p1,p2=GetProfessions()
 	ns.me=GetUnitName("player")
 	ns.localizedClass,ns.class=UnitClass("player")
 	if p1 then
 		local name,icon,level=GetProfessionInfo(p1)
-		db.toons[ns.me][1]=name .. "(" .. level ..")"
+		db.toons[ns.me].p1=name .. "(" .. level ..")\n"
 	end
 	if p2 then
 		local name,icon,level=GetProfessionInfo(p2)
-		db.toons[ns.me][2]=name .. "(" .. level ..")"
+		db.toons[ns.me].p2=name .. "(" .. level ..")\n"
 	end
-	db.toons[ns.me][ns.class]=ns.localizedClass .. "(" .. UnitLevel("player") ..")"
+	db.toons[ns.me].localizedClass=ns.localizedClass
+	db.toons[ns.me].level=UnitLevel("player")
+	db.toons[ns.me].class=ns.class
 	currentRequester=GetUnitName("player")
-	currentReceiver=db.lastReceiver or NONE
-	print(icon)
+	currentReceiver=db.lastReceiver or 'NONE'
+	if  _G.DataStore then
+		local d=_G.DataStore
+		local faction=UnitFactionGroup("player")
+		local delay=60*60*24*30 -- does not import old toons
+		for name,key in pairs(d:GetCharacters()) do
+			if not rawget(db.toons,name) then -- need to bypass aceDb metatable
+				if d:IsEnabled("DataStore_Characters") then
+					if faction==d:GetCharacterFaction(key) then
+						db.toons[name].localizedClass,db.toons[name].class=d:GetCharacterClass(key)
+						db.toons[name].level=d:GetCharacterLevel(key)
+						if d:IsEnabled("DataStore_Crafts") then
+							local l,_,_,n=d:GetProfession1(key)
+							if l and l>0 then
+								db.toons[name].p1=format("%s (%d)",n,l)
+							end
+							local l,_,_,n=d:GetProfession2(key)
+							if l and l>0 then
+								db.toons[name].p2=format("%s (%d)",n,l)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	for name,data in pairs(db.toons) do
+		toonTable[name]={
+			text=data.class and format("|c%s%s (%s %d)|r",_G.RAID_CLASS_COLORS[data.class].colorStr,name,data.localizedClass,data.level) or name,
+			tooltip=(data.p1 and data.p1 .."\n" or "") .. (data.p2 and data.p2 .."\n" or "")
+		}
+		data.text=toonTable[name].text
+
+	end
 	if icon then
 		icon:Register(me,ldb,self.db.profile.ldb)
 	end
+	self:ScheduleRepeatingTimer("RefreshSendable",2)
 end
 function addon:OnInitialized()
 	--AltoholicDB.profileKeys
-	self:Popup("MailCommander\n EARLY BETA version for internal use...\nUse at your risk")
-	if not GameTooltip then GameTooltip=CreateFrame("GameTooltip", "MailCommanderTooltip", UIParent, "GameTooltipTemplate") end
-	print("Running oninit")
+	self:Popup("MailCommander\n EARLY BETA version for internal use...\nUse at your risk",5)
 	db=self.db.factionrealm
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
 	self:AddOpenCmd("config","OpenConfig",L["Open configuration view"])
-	self:ScheduleTimer("StoreData",2)
+	self:ScheduleTimer("InitData",2)
 	self:RegisterEvent("MAIL_SHOW","CheckTab")
 	self:RegisterEvent("MAIL_CLOSED","CheckTab")
-	self:RegisterEvent("MAIL_INBOX_UPDATE",print)
 	self:RegisterEvent("MAIL_SEND_SUCCESS","MailEvent")
 	self:RegisterEvent("MAIL_FAILED","MailEvent")
 	self:RegisterEvent("BAG_UPDATE_DELAYED",function(...) dirty=true end)
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
-	self:SecureHookScript(_G.InboxFrame,"OnShow",print)
 	self:HookScript(_G.SendMailFrame,"OnHide","CloseChooser")
-	self:HookScript(_G.InboxFrame,"OnHide",print)
-	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
 	--@debug@
-	self:ScheduleTimer("OpenConfig",3)
+	self:RegisterEvent("MAIL_INBOX_UPDATE",print)
+	self:SecureHookScript(_G.InboxFrame,"OnShow",print)
+	self:HookScript(_G.InboxFrame,"OnHide",print)
 	--@end-debug@
-	self:ScheduleRepeatingTimer("RefreshSendable",10)
+	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
 end
 function addon:CheckTab(event)
 	if event =="MAIL_SHOW" then
@@ -296,8 +324,8 @@ function addon:GetFilter()
 		currentRequester = currentRequester or GetUnitName("player")
 		return currentRequester
 	else
-		currentReceiver= currentReceiver or currentRequester or NONE
-		if currentReceiver==GetUnitName("player") then currentReceiver=NONE end
+		currentReceiver= currentReceiver or currentRequester or 'NONE'
+		if currentReceiver==GetUnitName("player") then currentReceiver='NONE' end
 		return currentReceiver
 	end
 end
@@ -343,7 +371,10 @@ function addon:InitializeDropDown()
 	local function SetFilter(...)
 		addon:SetFilter(...)
 	end
-	UIDropDownMenu_SetText(mcf.Filter,current)
+	--@debug@
+	print(current)
+	--@end-debug@
+	UIDropDownMenu_SetText(mcf.Filter,current=='NONE' and NONE or current)
 	local padding
 	if currentTab==ISEND then
 		addon:RefreshSendable()
@@ -357,7 +388,7 @@ function addon:InitializeDropDown()
 	info.func = SetFilter
 	info.isTitle=nil
 	info.disabled=nil
-	for name,data in pairs(db.toons) do
+	for name,data in pairs(toonTable) do
 		if currentTab==INEED or name~=ns.me then
 			if next(data)~=nil then
 				if currentTab==INEED or sendable[name] then
@@ -367,44 +398,10 @@ function addon:InitializeDropDown()
 					info.tooltipText=""
 					info.tooltipOnButton=true
 					info.leftPadding=padding
-					info.text=name
-					for n,l in pairs(data) do
-						if tonumber(n) then
-							info.tooltipText=info.tooltipText .. l .. "\n"
-						else
-							info.colorCode="|c".._G.RAID_CLASS_COLORS[n].colorStr
-							info.text=name .. " " .. l
-						end
-					end
+					info.text=data.text
+					info.tooltipText=data.tooltip
 					UIDropDownMenu_AddButton(info);
 				end
-			end
-		end
-	end
-	if currentTab==ISEND then
-		info.leftPadding=nil
-		info.text="Friends"
-		info.isTitle=true
-		info.notCheckable=true
-		info.checked=nil
-		UIDropDownMenu_AddButton(info);
-		info.notCheckable=nil
-		info.isTitle=nil
-		info.disabled=nil
-		for name,data in pairs(db.friends) do
-			if sendable[name] then
-				info.checked=current == name
-				info.arg1=name
-				info.tooltipTitle="Professions"
-				info.tooltipText=""
-				info.tooltipOnButton=true
-				info.leftPadding=padding
-				for n,l in pairs(professions) do
-					info.tooltipText=info.tooltipText .. n .. " (" .. l ..")\n"
-				end
-				info.text=name
-				info.colorCode="|cff808000",
-				UIDropDownMenu_AddButton(info);
 			end
 		end
 	end
@@ -412,6 +409,7 @@ end
 
 function addon:RenderButtonList(store,page)
 	mcf.store=store
+	if currentRequester==ns.me then mcf.Delete:Disable() else mcf.Delete:Enable() end
 	local total=#store
 	page=page or 0
 	local nextpage=false
@@ -468,6 +466,8 @@ function addon:RenderButtonList(store,page)
 end
 function addon:RenderNeedBox()
 	mcf.Send:Hide()
+	mcf.Delete:Show()
+	mcf.NameText:SetText(L["Oggetti che questo personaggio desidera ricevere"])
 	local toon=self:GetFilter()
 	print("Filter is",toon)
 	self:RenderButtonList(db.requests[toon])
@@ -475,6 +475,8 @@ function addon:RenderNeedBox()
 end
 function addon:RenderSendBox()
 	mcf.Send:Show()
+	mcf.Delete:Hide()
+	mcf.NameText:SetText(L["Oggetti che possono essere spediti a questo personaggio"])
 	local toon=self:GetFilter()
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
@@ -504,6 +506,40 @@ local function compare(itemInBag,itemRequest)
 		return tonumber(itemInBag)==tonumber(itemRequest)
 	end
 	return false
+end
+local function DeleteStore(popup,toon)
+	local key=_G.DataStore:GetCharacter(toon)
+	_G.DataStore:DeleteCharacter(toon)
+	currentRequester='NONE'
+	addon:UpdateMailCommanderFrame()
+end
+function addon:DeleteStore()
+	if currentRequester then
+		self:Popup(format(L["DO you want to delete %1$s\nfrom DataStore, too?"].."\n"..
+					L["If you dont remove %1$s also from DataStore, it will be back"],currentRequester),
+					DeleteStore,function() currentRequester='NONE' addon:UpdateMailCommanderFrame() end,currentRequester)
+	end
+end
+local function DeleteToon(popup,toon)
+	wipe(db.toons[toon])
+	wipe(db.requests[toon])
+	wipe(toonTable[toon])
+	for itemid,_ in pairs(db.disabled) do
+		wipe(db.disabled[itemid][toon])
+	end
+	local d=_G.DataStore
+	if d and d:IsEnabled("DataStore_Character") then
+		addon:ScheduleTimer("DeleteStore",1)
+	else
+		currentRequester='NONE'
+		addon:UpdateMailCommanderFrame()
+	end
+end
+function addon:OnDeleteClick(this,button)
+	local info=rawget(db.toons,currentRequester)
+	if info then
+		self:Popup(format(L["Do you wan to delete\n%s?"],info.text),DeleteToon,function() end,currentRequester)
+	end
 end
 function addon:OnSendClick(this,button)
 	local sent=1
@@ -603,18 +639,18 @@ function addon:OnItemEnter(itemButton,motion)
 		GameTooltip:SetHyperlink(itemlink)
 		local itemId=self:GetItemID(itemButton:GetAttribute("itemlink"))
 		local enabled=not IsDisabled(itemId)
-		local color1=C.Azure
-		local color2=enabled and RED_FONT_COLOR or GREEN_FONT_COLOR
+		local color1=C.White
+		local color2=enabled and GREEN_FONT_COLOR or RED_FONT_COLOR
+		GameTooltip:AddLine(me)
 		GameTooltip:AddDoubleLine(KEY_BUTTON1,enabled and DISABLE or ENABLE,color1.r,color1.g,color1.b,color2.r,color2.g,color2.b)
 		if currentTab==INEED then
-			GameTooltip:AddDoubleLine("",L["Disabled items will not appear in send window"])
+			GameTooltip:AddLine("",L["Disabled items will not appear in send window"])
 			GameTooltip:AddDoubleLine(KEY_BUTTON2,REMOVE,color1.r,color1.g,color1.b,RED_FONT_COLOR.r,RED_FONT_COLOR.g,RED_FONT_COLOR.b)
 		else
-			GameTooltip:AddDoubleLine("",format(L["Disabled items are not sent with \"%s\" button"],L["Send All"]))
-			GameTooltip:AddDoubleLine(KEY_BUTTON2,"Remove",color1.r,color1.g,color1.b,RED_FONT_COLOR.r,RED_FONT_COLOR.g,RED_FONT_COLOR.b)
+			GameTooltip:AddLine("",format(L["Disabled items are not sent with \"%s\" button"],L["Send All"]))
+			GameTooltip:AddDoubleLine(KEY_BUTTON2,L["Add to sendmail panel"],color1.r,color1.g,color1.b,GREEN_FONT_COLOR.r,GREEN_FONT_COLOR.g,GREEN_FONT_COLOR.b)
 		end
 		GameTooltip:AddDoubleLine("Id:",itemId)
-
 	else
 		GameTooltip:SetText(L["Dragging an item here will add it to the list"])
 	end
@@ -665,6 +701,7 @@ function addon:OnItemDropped(frame)
 				end
 			end
 			tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
+			dirty=true
 		else
 			self:Popup(L["You cant mail soulbound items"])
 		end

@@ -44,9 +44,6 @@
 					<OnLeave>
 						MailCommander:CloseTip()
 					</OnLeave>
-					<OnHide>
-					print("OnHide")
-					</OnHide>
 					<OnReceiveDrag>
 						MailCommander:OnItemDropped(self)
 					</OnReceiveDrag>
@@ -212,6 +209,17 @@
 				<Scripts>
 					<OnClick>
 						MailCommander:OnSendClick(self,button)
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE">
+				<Size x="120" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-15" y="-28"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:OnDeleteClick(self,button)
 					</OnClick>
 				</Scripts>
 			</Button>

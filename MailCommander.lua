@@ -49,35 +49,38 @@ local db
 local mcf
 local INEED=1
 local ISEND=2
-local currentRequester
-local currentReceiver
+local currentRequester='NONE'
+local currentReceiver='NONE'
 local lastReceiver
 local currentTab=0
 local dirty=true
+local faction="Neutral"
 local shouldsend
+local oldshouldsend
 local sendable={} -- For each toon, it's true if the current one has at least one object to send
 local toonTable={} -- precaculated toon table for initDropDown to avoid bursting memory
 -- ldb extension
 function ldb:Update()
-	local oldshouldsend
-	for name,data in pairs(db.toons) do
-		if sendable[name] then
-			shouldsend=true
-			break
-		end
-	end
 	if oldshouldsend ~= shouldsend then
-		ldb.text=shouldsend and L["You have items to send"] or L["Nothing to send"]
+		ldb.text=shouldsend and C(L["You have items to send"],"GREEN") or C(L["Nothing to send"],"SILVER")
 		local button =icon:GetMinimapButton(me)
 		if shouldsend then
 			button.icon:SetVertexColor(0,1,0)
 		else
-			button.icon:SetVertexColor(1,0,0)
+			button.icon:SetVertexColor(1,1,1)
 		end
 	end
 end
 function ldb:OnClick(button)
-	addon:OpenConfig()
+	if button=="RightButton" then
+		addon:Gui()
+		return
+	end
+	if mcf:IsVisible() then
+		mcf:Hide()
+	else
+		addon:OpenConfig()
+	end
 end
 function ldb:OnTooltipShow(...)
 	if not shouldsend then
@@ -89,6 +92,11 @@ function ldb:OnTooltipShow(...)
 				self:AddLine(name,C[data.class]())
 			end
 		end
+	end
+	self:AddDoubleLine(KEY_BUTTON1,L['Open requester'],nil,nil,nil,C:Green())
+	self:AddDoubleLine(KEY_BUTTON2,L['Open configuration'],nil,nil,nil,C:Green())
+	if faction=="Neutral" then
+		self:AddLine(L["ATTENTION: Neutral characters cant use mail"],C:Orange())
 	end
 end
 
@@ -133,7 +141,6 @@ local function IsDisabled(itemid)
 end
 local function AddButton(i,data)
 		if not mcf.Items[i] then
-			print("Created item",i)
 			mcf.Items[i]=CreateFrame("Frame",nil,mcf,"MailCommanderItemTemplate")
 			mcf.Items[i].ItemButton:RegisterForClicks("LeftButtonUp","RightButtonUp")
 			mcf.Items[i].ItemButton.isBag=true
@@ -147,7 +154,6 @@ local function AddButton(i,data)
 			frame:SetPoint("TOPLEFT",mcf,"TOPLEFT",10,-60)
 		end
 		if type(data)=='table' then
-			print("Loading",data.l,i)
 			frame.ItemButton:SetAttribute("itemlink",data.l)
 			SetItemButtonTexture(frame.ItemButton,data.t)
 			frame.Name:SetText(data.l)
@@ -174,6 +180,7 @@ function addon:CloseTip()
 end
 function addon:InitData()
 	local p1,p2=GetProfessions()
+	faction=UnitFactionGroup("player")
 	ns.me=GetUnitName("player")
 	ns.localizedClass,ns.class=UnitClass("player")
 	if p1 then
@@ -187,27 +194,26 @@ function addon:InitData()
 	db.toons[ns.me].localizedClass=ns.localizedClass
 	db.toons[ns.me].level=UnitLevel("player")
 	db.toons[ns.me].class=ns.class
+	db.toons[ns.me].faction=faction
 	currentRequester=GetUnitName("player")
 	currentReceiver=db.lastReceiver or 'NONE'
 	if  _G.DataStore then
 		local d=_G.DataStore
-		local faction=UnitFactionGroup("player")
 		local delay=60*60*24*30 -- does not import old toons
 		for name,key in pairs(d:GetCharacters()) do
 			if not rawget(db.toons,name) then -- need to bypass aceDb metatable
 				if d:IsEnabled("DataStore_Characters") then
-					if faction==d:GetCharacterFaction(key) then
-						db.toons[name].localizedClass,db.toons[name].class=d:GetCharacterClass(key)
-						db.toons[name].level=d:GetCharacterLevel(key)
-						if d:IsEnabled("DataStore_Crafts") then
-							local l,_,_,n=d:GetProfession1(key)
-							if l and l>0 then
-								db.toons[name].p1=format("%s (%d)",n,l)
-							end
-							local l,_,_,n=d:GetProfession2(key)
-							if l and l>0 then
-								db.toons[name].p2=format("%s (%d)",n,l)
-							end
+					db.toons[name].faction=d:GetCharacterFaction(key)
+					db.toons[name].localizedClass,db.toons[name].class=d:GetCharacterClass(key)
+					db.toons[name].level=d:GetCharacterLevel(key)
+					if d:IsEnabled("DataStore_Crafts") then
+						local l,_,_,n=d:GetProfession1(key)
+						if l and l>0 then
+							db.toons[name].p1=format("%s (%d)",n,l)
+						end
+						local l,_,_,n=d:GetProfession2(key)
+						if l and l>0 then
+							db.toons[name].p2=format("%s (%d)",n,l)
 						end
 					end
 				end
@@ -215,12 +221,13 @@ function addon:InitData()
 		end
 	end
 	for name,data in pairs(db.toons) do
-		toonTable[name]={
-			text=data.class and format("|c%s%s (%s %d)|r",_G.RAID_CLASS_COLORS[data.class].colorStr,name,data.localizedClass,data.level) or name,
-			tooltip=(data.p1 and data.p1 .."\n" or "") .. (data.p2 and data.p2 .."\n" or "")
-		}
-		data.text=toonTable[name].text
-
+		if data.faction==faction then
+			toonTable[name]={
+				text=data.class and format("|c%s%s (%s %d)|r",_G.RAID_CLASS_COLORS[data.class].colorStr,name,data.localizedClass,data.level) or name,
+				tooltip=(data.p1 and data.p1 .."\n" or "") .. (data.p2 and data.p2 .."\n" or "")
+			}
+			data.text=toonTable[name].tex
+		end
 	end
 	if icon then
 		icon:Register(me,ldb,self.db.profile.ldb)
@@ -231,6 +238,7 @@ function addon:OnInitialized()
 	--AltoholicDB.profileKeys
 	self:Popup("MailCommander\n EARLY BETA version for internal use...\nUse at your risk",5)
 	db=self.db.factionrealm
+	self:AddBoolean("MAILBODY",true,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
 	self:AddOpenCmd("config","OpenConfig",L["Open configuration view"])
 	self:ScheduleTimer("InitData",2)
@@ -247,6 +255,7 @@ function addon:OnInitialized()
 	self:HookScript(_G.InboxFrame,"OnHide",print)
 	--@end-debug@
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
+	return true
 end
 function addon:CheckTab(event)
 	if event =="MAIL_SHOW" then
@@ -288,7 +297,6 @@ end
 function addon:OnLoad(frame)
 	mcf=frame
 	frame:SetClampedToScreen()
-	print("Running frame onload")
 	--MCF:EnableMouse(true)
 	--MCF:SetMovable(true)
 	frame.Send:SetText(L["Send All"])
@@ -301,9 +309,6 @@ function addon:OnLoad(frame)
 	UIDropDownMenu_SetWidth(frame.Filter, 150);
 	UIDropDownMenu_Initialize(frame.Filter, self.InitializeDropDown);
 	UIDropDownMenu_SetText(frame.Filter,self:GetFilter())
-	--@debug@
-	print("Initial filter",self:GetFilter())
-	--@end-debug@
 	PanelTemplates_SetNumTabs(frame, 2);
 	PanelTemplates_SetTab(frame, 1);
 	local texture=mcf:CreateTexture(nil,"BACKGROUND")
@@ -344,15 +349,7 @@ function addon:RefreshSendable()
 				local count=GetItemCount(d.i)
 				if count and count > 0 then
 					sendable[name]=true
-					break
-				end
-			end
-		end
-		for name,_ in pairs(db.friends) do
-			for _,d in ipairs(db.requests[name]) do
-				local count=GetItemCount(d.i)
-				if count and count > 0 then
-					sendable[name]=true
+					shouldsend=true
 					break
 				end
 			end
@@ -369,7 +366,7 @@ function addon:InitializeDropDown()
 		addon:SetFilter(...)
 	end
 	--@debug@
-	print(current)
+	print("InitializeDropDown",current)
 	--@end-debug@
 	UIDropDownMenu_SetText(mcf.Filter,current=='NONE' and NONE or current)
 	local padding
@@ -390,6 +387,9 @@ function addon:InitializeDropDown()
 			if next(data)~=nil then
 				if currentTab==INEED or sendable[name] then
 					info.checked=current == name
+					if info.checked then
+						UIDropDownMenu_SetText(mcf.Filter,name)
+					end
 					info.arg1=name
 					info.tooltipTitle=TRADE_SKILLS
 					info.tooltipText=""
@@ -410,9 +410,6 @@ function addon:RenderButtonList(store,page)
 	local total=#store
 	page=page or 0
 	local nextpage=false
-	--@debug@
-	print("Refreshing button list for",currentTab)
-	--@end-debug@
 	for i=1,#mcf.Items do
 		AddButton(i,false)
 	end
@@ -421,7 +418,6 @@ function addon:RenderButtonList(store,page)
 	local i=1
 	for ix,data in ipairs(store) do
 		if currentTab==INEED or (tonumber(GetItemCount(data.i)) or 0) >0 then
-			print(i,page*slots,(page+1)*slots)
 			if i>first then
 				if i > last then
 					nextpage=true
@@ -434,9 +430,6 @@ function addon:RenderButtonList(store,page)
 		end
 	end
 	if currentTab==INEED then
-		--@debug@
-		print("Devo mettere add e sono con i=",i," e page*slots=",page*slots," e slots =",slots)
-		--@end-debug@
 		if i-page*slots <=slots then
 			AddButton(i-page*slots)
 		else
@@ -464,7 +457,7 @@ end
 function addon:RenderNeedBox()
 	mcf.Send:Hide()
 	mcf.Delete:Show()
-	mcf.NameText:SetText(L["Items needed from this toon"])
+	mcf.NameText:SetText(L["Items needed by this toon"])
 	local toon=self:GetFilter()
 	print("Filter is",toon)
 	self:RenderButtonList(db.requests[toon])
@@ -478,17 +471,32 @@ function addon:RenderSendBox()
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
 end
+function addon:OnSendEnter(this)
+	local tip=GameTooltip
+	tip:SetOwner(this,"ANCHOR_CURSOR")
+	tip:AddLine(L["Send all enabled items (no confirmation asked)"])
+	tip:Show()
+end
+function addon:OnDeleteEnter(this)
+	local tip=GameTooltip
+	tip:SetOwner(this,"ANCHOR_CURSOR")
+	tip:AddLine(L["Remove the selected toon from the droplist"])
+	tip:Show()
+end
 function addon:OnHelpEnter(this)
 	local tip=GameTooltip
 	tip:SetOwner(this,"ANCHOR_BOTTOMRIGHT")
 	if currentTab==INEED then
-		tip:AddLine(L["Mail Commandee request configuration"])
-		tip:AddLine(L["Drag items to define what the selected toon NEEDS"])
+		tip:AddLine(L["Mail Commander request configuration"],C:Green())
+		tip:AddLine(L["Drag items to define what the selected toon NEEDS"],C:Silver())
 	else
-		tip:AddLine(L["Mail Commander bulk mail sending"])
-		tip:AddLine(L["From this panel you can send requested items"])
-		tip:AddLine(L["Items that you dont have are not shown"])
-		tip:AddLine(format(L["Use \"%s\" button to send all items at once (max %d items at a time)"],L["Send All"],ATTACHMENTS_MAX_SEND))
+		tip:AddLine(L["Mail Commander bulk mail sending"],C:Green())
+		tip:AddLine(L["From this panel you can send requested items"],C:Silver())
+		tip:AddLine(L["Items that you dont have are not shown"],C:Silver())
+		tip:AddLine(format(L["Use \"%s\" button to send all items at once (max %d items at a time)"],L["Send All"],ATTACHMENTS_MAX_SEND),C:Silver())
+	end
+	if faction=="Neutral" then
+		tip:AddLine(L["ATTENTION: Neutral characters cant use mail"],C:Orange())
 	end
 
 	tip:Show()
@@ -535,7 +543,7 @@ end
 function addon:OnDeleteClick(this,button)
 	local info=rawget(db.toons,currentRequester)
 	if info then
-		self:Popup(format(L["Do you wan to delete\n%s?"],info.text),DeleteToon,function() end,currentRequester)
+		self:Popup(format(L["Do you want to delete\n%s?"],info.text),DeleteToon,function() end,currentRequester)
 	end
 end
 function addon:OnSendClick(this,button)
@@ -564,7 +572,7 @@ function addon:OnSendClick(this,button)
 	local header=L["Mail Commander Bulk Mail"]
 	for i=1,ATTACHMENTS_MAX_SEND do
 		local name,_,count=GetSendMailItem(i)
-		if name then
+		if name and self:GetBoolean("MAILBODY") then
 			body=body..name .. " x " .. count .. "\n"
 		else
 			break
@@ -673,7 +681,9 @@ function addon:OnTabClick(tab)
 	self:UpdateMailCommanderFrame()
 end
 function addon:UpdateMailCommanderFrame()
-	if not mcf:IsVisible() then return end
+--@debug@
+	print("UpdateMailCommanderFrame",mcf.selectedTab,mcf:IsVisible())
+--@end-debug@
 	if mcf.selectedTab==1 then
 		addon:RenderNeedBox(mcf)
 	elseif mcf.selectedTab==2 then
@@ -682,7 +692,12 @@ function addon:UpdateMailCommanderFrame()
 --@debug@
 		print("Invalid tab",mcf.selectedTab)
 --@end-debug@
+		return
 	end
+--@debug@
+	print("Calling InitializeDropDown")
+--@end-debug@
+	self:InitializeDropDown()
 
 end
 function addon:OnItemDropped(frame)

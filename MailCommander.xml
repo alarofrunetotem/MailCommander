@@ -210,6 +210,9 @@
 					<OnClick>
 						MailCommander:OnSendClick(self,button)
 					</OnClick>
+					<OnEnter>
+						MailCommander:OnSendEnter(self)
+					</OnEnter>
 				</Scripts>
 			</Button>
 			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">
@@ -221,6 +224,9 @@
 					<OnClick>
 						MailCommander:OnDeleteClick(self,button)
 					</OnClick>
+					<OnEnter>
+						MailCommander:OnDeleteEnter(self)
+					</OnEnter>
 				</Scripts>
 			</Button>
 		</Frames>

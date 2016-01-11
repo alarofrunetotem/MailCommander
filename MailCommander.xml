@@ -51,8 +51,8 @@
 			</Button>
 		</Frames>
 		<Scripts>
-			<OnEnter>
-				print("OnEnter",self:GetName(), motion);
+			<OnEnter >
+				MailCommander:OnItemEnter(self,button)
 			</OnEnter>
 			<OnLeave>
 				MailCommander:CloseTip()

@@ -89,7 +89,13 @@ function ldb:OnTooltipShow(...)
 		self:AddLine(L["Items available for:"],C:Green())
 		for name,data in pairs(db.toons) do
 			if sendable[name] and name~=ns.me then
-				self:AddLine(name,C[data.class]())
+				self:AddLine(toonTable[name].text)
+				for _,d in pairs(db.requests[name]) do
+					local c=GetItemCount(d.i)
+					if c and c >0 then
+						self:AddDoubleLine("   " .. d.l,c,nil,nil,nil,C:Green())
+					end
+				end
 			end
 		end
 	end
@@ -201,7 +207,7 @@ function addon:InitData()
 		local d=_G.DataStore
 		local delay=60*60*24*30 -- does not import old toons
 		for name,key in pairs(d:GetCharacters()) do
-			if not rawget(db.toons,name) then -- need to bypass aceDb metatable
+			if name~=ns.me then -- Do not overwrite current data with (possibly) stale data
 				if d:IsEnabled("DataStore_Characters") then
 					db.toons[name].faction=d:GetCharacterFaction(key)
 					db.toons[name].localizedClass,db.toons[name].class=d:GetCharacterClass(key)
@@ -221,7 +227,7 @@ function addon:InitData()
 		end
 	end
 	for name,data in pairs(db.toons) do
-		if data.faction==faction then
+		if not data.faction or data.faction==faction then
 			toonTable[name]={
 				text=data.class and format("|c%s%s (%s %d)|r",_G.RAID_CLASS_COLORS[data.class].colorStr,name,data.localizedClass,data.level) or name,
 				tooltip=(data.p1 and data.p1 .."\n" or "") .. (data.p2 and data.p2 .."\n" or "")
@@ -229,18 +235,22 @@ function addon:InitData()
 			data.text=toonTable[name].tex
 		end
 	end
+
+	self:ScheduleRepeatingTimer("RefreshSendable",2)
+end
+function addon:ApplyMINIMAP(value)
+	if value then icon:Hide(me) else icon:Show(me) end
+end
+function addon:OnInitialized()
+	self:Popup("MailCommander\n EARLY BETA version for internal use...\nUse at your risk",5)
+	db=self.db.factionrealm
 	if icon then
 		icon:Register(me,ldb,self.db.profile.ldb)
 	end
-	self:ScheduleRepeatingTimer("RefreshSendable",2)
-end
-function addon:OnInitialized()
-	--AltoholicDB.profileKeys
-	self:Popup("MailCommander\n EARLY BETA version for internal use...\nUse at your risk",5)
-	db=self.db.factionrealm
 	self:AddBoolean("MAILBODY",true,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
+	self:AddBoolean("MINIMAP",false,L["Hide minimap icon"],L["If you hide minimap icon, use /mac gui to access configuration ad /mac requests to open requests panel"])
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
-	self:AddOpenCmd("config","OpenConfig",L["Open configuration view"])
+	self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:ScheduleTimer("InitData",2)
 	self:RegisterEvent("MAIL_SHOW","CheckTab")
 	self:RegisterEvent("MAIL_CLOSED","CheckTab")
@@ -343,14 +353,22 @@ function addon:SetFilter(info,name)
 end
 function addon:RefreshSendable()
 	if dirty and not InCombatLockdown() then
+		shouldsend=false
 		wipe(sendable)
 		for name,_ in pairs(db.requests) do
-			for _,d in ipairs(db.requests[name]) do
-				local count=GetItemCount(d.i)
-				if count and count > 0 then
-					sendable[name]=true
-					shouldsend=true
-					break
+			if name ~= ns.me then
+				if rawget(db.toons,name) then
+					for _,d in ipairs(db.requests[name]) do
+						local count=GetItemCount(d.i)
+						if count and count > 0 then
+							--@debug@
+							print(name,"set as sendable due to",d.l,"x",count)
+							--@end-debug@
+							sendable[name]=true
+							shouldsend=true
+							break
+						end
+					end
 				end
 			end
 		end
@@ -392,7 +410,6 @@ function addon:InitializeDropDown()
 					end
 					info.arg1=name
 					info.tooltipTitle=TRADE_SKILLS
-					info.tooltipText=""
 					info.tooltipOnButton=true
 					info.leftPadding=padding
 					info.text=data.text
@@ -568,19 +585,23 @@ function addon:OnSendClick(this,button)
 			end
 		end
 	end
+	sent=0
 	local body=""
 	local header=L["Mail Commander Bulk Mail"]
 	for i=1,ATTACHMENTS_MAX_SEND do
 		local name,_,count=GetSendMailItem(i)
-		if name and self:GetBoolean("MAILBODY") then
-			body=body..name .. " x " .. count .. "\n"
-		else
-			break
+		if name then
+			if self:GetBoolean("MAILBODY") then
+				body=body..name .. " x " .. count .. "\n"
+			end
+			sent=sent+1
 		end
 	end
-	if body ~= "" then
-		SendMail(currentReceiver,header,body)
+	if sent > 0 then
 		this:Disable()
+		SendMail(currentReceiver,header,body)
+		self:UpdateMailCommanderFrame()
+		this:Enable()
 	end
 end
 function addon:MailEvent(event)
@@ -588,7 +609,8 @@ function addon:MailEvent(event)
 	print("Mail event ",event)
 	--@end-debug@
 	mcf.Send:Enable()
-	self:UpdateMailCommanderFrame()
+	self:RefreshSendable()
+	self:ScheduleTimer("UpdateMailCommanderFrame",0.5)
 end
 function addon:CanSendMail()
 	if not SendMailFrame:IsVisible() then
@@ -634,6 +656,7 @@ function addon:OnItemClicked(itemButton,button)
 			for i,d in ipairs(db.requests[currentRequester]) do
 				if d.i==itemId then
 					tremove(db.requests[currentRequester],i)
+					dirty=true
 					break
 				end
 			end
@@ -767,6 +790,11 @@ function addon:CommandTheBunnies()
 end
 --]]
 _G.MailCommander=addon
+--@debug@
+_G.MAC=addon
+_G.MAC.sendable=sendable
+--@end-debug@
+
 -- Key Bindings Names
 _G.BINDING_HEADER_MAILCOMMANDER="MailCommander"
 _G.BINDING_NAME_MCConfig=L["Requests Configuration"]

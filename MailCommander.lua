@@ -248,7 +248,7 @@ function addon:OnInitialized()
 		icon:Register(me,ldb,self.db.profile.ldb)
 	end
 	self:AddBoolean("MAILBODY",true,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
-	self:AddBoolean("MINIMAP",false,L["Hide minimap icon"],L["If you hide minimap icon, use /mac gui to access configuration ad /mac requests to open requests panel"])
+	self:AddBoolean("MINIMAP",false,L["Hide minimap icon"],L["If you hide minimap icon, use /mac gui to access configuration and /mac requests to open requests panel"])
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
 	self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:ScheduleTimer("InitData",2)

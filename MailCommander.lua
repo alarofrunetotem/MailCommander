@@ -83,7 +83,7 @@ function ldb:OnTooltipShow(...)
 	if not shouldsend then
 		self:AddLine(L["Nothing to send"],C:Silver())
 	else
-		self:AddLine(L["Items ready for:"],C:Green())
+		self:AddLine(L["Items available for:"],C:Green())
 		for name,data in pairs(db.toons) do
 			if sendable[name] and name~=ns.me then
 				self:AddLine(name,C[data.class]())
@@ -260,7 +260,7 @@ function addon:OpenConfig(tab)
 --@debug@
 	print("Opening config")
 --@end-debug@
-	OpenAllBags()
+	OpenAllBags(mcf)
 	mcf:SetParent(UIParent)
 	mcf:ClearAllPoints()
 	mcf:SetPoint("CENTER")
@@ -270,10 +270,7 @@ function addon:OpenConfig(tab)
 	mcf:Show()
 end
 function addon:OpenSender(tab)
-	ShowUIPanel(MailFrame);
-	MailFrameTab_OnClick(MailFrame,2)
-	if ( not SendMailFrame:IsShown() ) then
-		CloseMail();
+	if ( not SendMailFrame:IsVisible() ) then
 		return;
 	end
 	mcf:ClearAllPoints()
@@ -467,7 +464,7 @@ end
 function addon:RenderNeedBox()
 	mcf.Send:Hide()
 	mcf.Delete:Show()
-	mcf.NameText:SetText(L["Oggetti che questo personaggio desidera ricevere"])
+	mcf.NameText:SetText(L["Items needed from this toon"])
 	local toon=self:GetFilter()
 	print("Filter is",toon)
 	self:RenderButtonList(db.requests[toon])
@@ -476,7 +473,7 @@ end
 function addon:RenderSendBox()
 	mcf.Send:Show()
 	mcf.Delete:Hide()
-	mcf.NameText:SetText(L["Oggetti che possono essere spediti a questo personaggio"])
+	mcf.NameText:SetText(L["Items you can send to this toon"])
 	local toon=self:GetFilter()
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
@@ -515,7 +512,7 @@ local function DeleteStore(popup,toon)
 end
 function addon:DeleteStore()
 	if currentRequester then
-		self:Popup(format(L["DO you want to delete %1$s\nfrom DataStore, too?"].."\n"..
+		self:Popup(format(L["Do you want to delete %1$s\nfrom DataStore, too?"].."\n"..
 					L["If you dont remove %1$s also from DataStore, it will be back"],currentRequester),
 					DeleteStore,function() currentRequester='NONE' addon:UpdateMailCommanderFrame() end,currentRequester)
 	end
@@ -529,7 +526,7 @@ local function DeleteToon(popup,toon)
 	end
 	local d=_G.DataStore
 	if d and d:IsEnabled("DataStore_Character") then
-		addon:ScheduleTimer("DeleteStore",1)
+		addon:ScheduleTimer("DeleteStore",0.5)
 	else
 		currentRequester='NONE'
 		addon:UpdateMailCommanderFrame()
@@ -542,16 +539,17 @@ function addon:OnDeleteClick(this,button)
 	end
 end
 function addon:OnSendClick(this,button)
+	if not self:CanSendMail() then
+		return
+	end
 	local sent=1
 	for i=1,ATTACHMENTS_MAX_SEND do
 		if GetSendMailItem(i) then sent=i end
 	end
-	if not self:CanSendMail() then
-		return
-	end
 	for bagId=0,NUM_BAG_SLOTS do
 		for slotId=1,GetContainerNumSlots(bagId) do
-			if compare(GetContainerItemID(bagId,slotId),db.requests[currentReceiver]) then
+			local itemId=GetContainerItemID(bagId,slotId)
+			if not IsDisabled(itemId) and compare(itemId,db.requests[currentReceiver]) then
 				SendMailNameEditBox:SetText(currentReceiver)
 				UseContainerItem(bagId,slotId)
 				sent=sent+1
@@ -578,6 +576,9 @@ function addon:OnSendClick(this,button)
 	end
 end
 function addon:MailEvent(event)
+	--@debug@
+	print("Mail event ",event)
+	--@end-debug@
 	mcf.Send:Enable()
 	self:UpdateMailCommanderFrame()
 end
@@ -672,6 +673,7 @@ function addon:OnTabClick(tab)
 	self:UpdateMailCommanderFrame()
 end
 function addon:UpdateMailCommanderFrame()
+	if not mcf:IsVisible() then return end
 	if mcf.selectedTab==1 then
 		addon:RenderNeedBox(mcf)
 	elseif mcf.selectedTab==2 then

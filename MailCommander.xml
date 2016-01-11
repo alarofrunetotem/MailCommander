@@ -201,7 +201,7 @@
 					<Anchor point="TOPLEFT" x="0" y="-28"/>
 				</Anchors>
 			</Frame>
-			<Button parentKey="Send" inherits="UIPanelButtonTemplate" text="SEND_LABEL">
+			<Button parentKey="Send" inherits="UIPanelButtonTemplate" text="SEND_LABEL" hidden="true">
 				<Size x="120" y="30"/>
 				<Anchors>
 					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-15" y="-28"/>
@@ -212,7 +212,7 @@
 					</OnClick>
 				</Scripts>
 			</Button>
-			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE">
+			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">
 				<Size x="120" y="30"/>
 				<Anchors>
 					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-15" y="-28"/>
@@ -233,6 +233,9 @@
 					PanelTemplates_DisableTab(self,2)
 				end
 			</OnSHow>
+			<OnHide>
+				CloseAllBags(self)
+			</OnHide>
 			<OnReceiveDrag>
 			</OnReceiveDrag>
 			<OnMouseWheel>

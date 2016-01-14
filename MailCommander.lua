@@ -89,6 +89,7 @@ local oldshouldsend
 local sendable={} -- For each toon, it's true if the current one has at least one object to send
 local toonTable={} -- precaculated toon table for initDropDown to avoid bursting memory
 local toonIndex={}
+
 -- ldb extension
 function ldb:Update()
 	if oldshouldsend ~= shouldsend then

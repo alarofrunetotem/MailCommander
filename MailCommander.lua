@@ -68,6 +68,7 @@ local undo="Interface\\PaperDollInfoFrame\\UI-GearManager-Undo"
 local ignore="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Opaque"
 local ignore2="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent"
 local KEY_BUTTON1,KEY_BUTTON2=KEY_BUTTON1,KEY_BUTTON2
+local FILTER,SEND,NEED=FILTER,SEND_LABEL,NEED
 local kpairs=addon:getKpairs()
 -- locals
 local slots=16
@@ -152,9 +153,9 @@ local function IsDisabled(itemid)
 	end
 	return false
 end
-local function IsIgnored(toon)
+local function IsIgnored(toon,ignorelevel)
 	if not toon then return false end
-	return db.ignored[toon] or addon:GetNumber("MINLEVEL") > toonTable[toon].level
+	return db.ignored[toon] or (not ignorelevel and addon:GetNumber("MINLEVEL") > toonTable[toon].level)
 end
 
 local function AddButton(i,data,section)
@@ -208,7 +209,7 @@ local function AddButton(i,data,section)
 		local name=data
 		data=toonTable[name]
 		frame.ItemButton:SetAttribute('toon',name)
-		if IsIgnored(name) then
+		if IsIgnored(name,true) then
 			frame.ItemButton.Disabled:Show()
 		else
 			frame.ItemButton.Disabled:Hide()
@@ -364,6 +365,7 @@ function addon:OnInitialized()
 	self:AddSlider("MINLEVEL",90,1,100,L["Characters minimum level"],L["Only consider characters above this level"])
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
 	self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
+	self:AddBoolean("ALLSEND",false,format(L["Show all characters in %s tab"],SEND),L["Show all toons regardless if they have items to send or not"])
 	self:ScheduleTimer("InitData",2)
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:RegisterEvent("MAIL_SHOW","CheckTab")
@@ -456,6 +458,7 @@ function addon:OnLoad(frame)
 	texture:SetPoint("LEFT",0,0)
 	texture:SetPoint("RIGHT",0,0)
 	texture:SetTexCoord(0,0.6,0,0.7)
+	MailCommanderFrameAllText:SetText(SHOW.."\n" ..ALL)
 
 end
 function addon:GetFilter()
@@ -561,7 +564,9 @@ function addon:RenderButtonList(store,page)
 	local last=(page+1)*slots
 	local i=1
 	for ix,data in pairs(store) do
-		if currentTab==INEED or (currentTab==IFILTER and toonTable[data].level >= self:GetNumber("MINLEVEL")) or (tonumber(GetItemCount(data.i)) or 0) >0 then
+		if currentTab==INEED or
+			(currentTab==IFILTER and toonTable[data].level >= self:GetNumber("MINLEVEL")) or
+			(currentTab==ISEND and (self:GetBoolean('ALLSEND') or tonumber(GetItemCount(data.i) or 0) >0)) then
 			if i>first then
 				if i > last then
 					nextpage=true
@@ -603,6 +608,7 @@ function addon:RenderButtonList(store,page)
 end
 function addon:RenderNeedBox()
 	mcf.Send:Hide()
+	mcf.All:Hide()
 	mcf.Delete:Show()
 	mcf.Filter:Show()
 	mcf.Info:Hide()
@@ -617,6 +623,7 @@ function addon:RenderFilterBox()
 	mcf.Info:SetFormattedText(L["Characters under level |cffff9900%d|r are not shown"],self:GetNumber("MINLEVEL"))
 	mcf.NameText:SetText(L["Enable or disable toons"])
 	mcf.Send:Hide()
+	mcf.All:Hide()
 	mcf.Filter:Hide()
 	mcf.Delete:Hide()
 	mcf:SetAttribute("section","toons")
@@ -624,6 +631,9 @@ function addon:RenderFilterBox()
 end
 function addon:RenderSendBox()
 	mcf.Send:Show()
+	mcf.All:SetChecked(self:GetBoolean("ALLSEND"))
+	mcf.All:Show()
+	mcf.All.tooltip=L["Show all toons regardless if they have items to send or not"]
 	mcf.Delete:Hide()
 	mcf.Filter:Show()
 	mcf.Info:Hide()
@@ -638,6 +648,10 @@ function addon:OnSendEnter(this)
 	tip:SetOwner(this,"ANCHOR_CURSOR")
 	tip:AddLine(L["Send all enabled items (no confirmation asked)"])
 	tip:Show()
+end
+function addon:OnAllClick(this,value)
+	self:SetBoolean("ALLSEND",value)
+	return self:UpdateMailCommanderFrame()
 end
 function addon:OnDeleteEnter(this)
 	local tip=GameTooltip
@@ -859,16 +873,20 @@ function addon:OnItemEnter(itemButton,motion)
 		if itemlink then
 			GameTooltip:SetHyperlink(itemlink)
 			local itemId=self:GetItemID(itemButton:GetAttribute("itemlink"))
-			local enabled=not IsDisabled(itemId)
+			local disabled=IsDisabled(itemId)
 			local color1=C.White
-			local color2=enabled and GREEN_FONT_COLOR or RED_FONT_COLOR
+			local color2=disabled and GREEN_FONT_COLOR or RED_FONT_COLOR
 			GameTooltip:AddLine(me)
-			GameTooltip:AddDoubleLine(KEY_BUTTON1,enabled and DISABLE or ENABLE,color1.r,color1.g,color1.b,color2.r,color2.g,color2.b)
+			GameTooltip:AddDoubleLine(KEY_BUTTON1,disabled and ENABLE or DISABLE,color1.r,color1.g,color1.b,color2.r,color2.g,color2.b)
 			if currentTab==INEED then
-				if not enabled then GameTooltip:AddLine(L["Disabled items will not appear in send window"],C:Orange()) end
+				if disabled then
+					GameTooltip:AddLine(L["This item has been disabled for ALL toons"],C:Orange())
+				else
+					GameTooltip:AddLine(L["Disabling an item here will disable it for ALL toons"],C:Orange())
+				end
 				GameTooltip:AddDoubleLine(KEY_BUTTON2,REMOVE,color1.r,color1.g,color1.b,RED_FONT_COLOR.r,RED_FONT_COLOR.g,RED_FONT_COLOR.b)
 			else
-				if not enabled then GameTooltip:AddLine(format(L["Disabled items are not sent with \"%s\" button"],L["Send All"]),C:Orange()) end
+				if disabled then GameTooltip:AddLine(format(L["Disabled items are not sent with \"%s\" button"],L["Send All"]),C:Orange()) end
 				GameTooltip:AddDoubleLine(KEY_BUTTON2,L["Add to sendmail panel"],color1.r,color1.g,color1.b,GREEN_FONT_COLOR.r,GREEN_FONT_COLOR.g,GREEN_FONT_COLOR.b)
 			end
 			GameTooltip:AddDoubleLine("Id:",itemId)

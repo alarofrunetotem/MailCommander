@@ -1,4 +1,5 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Include file="libs\Ace3\AceBucket-3.0\AceBucket-3.0.xml" />
 	<Include file="libs\LibInit\LibInit.xml"/>
 	<Include file="libs\LibItemUpgradeInfo-1.0\LibItemUpgradeInfo-1.0.xml"/>
 	<Include file="libs\LibDBIcon-1.0\lib.xml" />

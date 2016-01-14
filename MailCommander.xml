@@ -4,6 +4,16 @@
 	<Button name="MailCommanderItemButtonTemplate" virtual="true" inherits="ItemButtonTemplate">
 		<!-- <CheckedTexture alphaMode="ADD" file="Interface\Buttons\CheckButtonHilight"/> -->
 		<!--<HighlightTexture file="Interface\PaperDollInfoFrame\UI-GearManager-LeaveItem-Transparent"/>-->
+		<Layers>
+			<Layer level="OVERLAY">
+				<Texture parentKey="Disabled" file="Interface\PaperDollInfoFrame\UI-GearManager-LeaveItem-Transparent" hidden="true">
+					<Size x="45" y="45"/>
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+		</Layers>
 	</Button>
 	<Frame name="MailCommanderItemTemplate" virtual="true">
 		<Size x="153" y="64"/>
@@ -62,7 +72,6 @@
 	<Frame name="MailCommander" virtual="true" toplevel="true" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="PortraitFrameTemplate"><!-- inherits="ButtonFrameTemplate">-->
 		<Size x="336" y="444"/>
 		<Layers>
-
 			<Layer level="BORDER">
 				<FontString parentKey="NameText" inherits="GameFontNormal" text="MailCommander">
 					<Anchors>
@@ -73,6 +82,14 @@
 					<Size x="104" y="0"/>
 					<Anchors>
 						<Anchor point="BOTTOM" x="0" y="10"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Info" inherits="GameFontWhite" text="Placeholder" justifyH="CENTER">
+					<Size x="100" y="30"/>
+					<Anchors>
+						<Anchor point="TOP" relativeKey="$parent" relativePoint="TOP" x="0" y="-20" />
+						<Anchor point="LEFT" x="0" y="0" />
+						<Anchor point="RIGHT" x="0" y="0" />
 					</Anchors>
 				</FontString>
 			</Layer>
@@ -124,7 +141,6 @@
 				</Layers>
 				<Scripts>
 					<OnClick>
-						DevTools_Dump(MailCommander.db.factionrealm.requests)
 						MailCommander:OnArrowsClick(self,'prev')
 					</OnClick>
 				</Scripts>
@@ -155,7 +171,6 @@
 				</Layers>
 				<Scripts>
 					<OnClick>
-						DevTools_Dump(MailCommander.db.factionrealm.disabled)
 						MailCommander:OnArrowsClick(self,'next')
 					</OnClick>
 				</Scripts>
@@ -164,36 +179,58 @@
 				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 			</Button>
-			<Button name="$parentTab1" inherits="CharacterFrameTabButtonTemplate" id="1" text="NEED">
+			<Button relativeKey="tabNEED" name="$parentTab1" inherits="CharacterFrameTabButtonTemplate" id="1" text="NEED">
 				<Anchors>
 					<Anchor point="CENTER" relativePoint="BOTTOMLEFT" x="50" y="-15"/>
 				</Anchors>
 				<Scripts>
 					<OnEnter>
-						local L=MailCommander:GetLocale()
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-						GameTooltip:SetText(L["My needs. Drag item you want to receive on this toon"], 1.0,1.0,1.0 );
+						GameTooltip:SetText(self.tooltip, 0,1.0,0 );
 					</OnEnter>
 					<OnLeave function="GameTooltip_Hide"/>
 					<OnClick>
 						MailCommander:OnTabClick(self)
 					</OnClick>
+					<OnLoad>
+						self.tooltip=_G.NEED
+					</OnLoad>
 				</Scripts>
 			</Button>
-			<Button name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2" text="SEND_LABEL">
+			<Button relativeKey="tabSEND" name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2" text="SEND_LABEL">
 				<Anchors>
 					<Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT" x="-16" y="0"/>
 				</Anchors>
 				<Scripts>
 					<OnEnter>
-						local L=MailCommander:GetLocale()
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-						GameTooltip:SetText(L["What other people need\nChecked items can be automatically sent"], 1.0,1.0,1.0 );
+						GameTooltip:SetText(self.tooltip, 0,1.0,0 );
 					</OnEnter>
 					<OnLeave function="GameTooltip_Hide"/>
 					<OnClick>
 						MailCommander:OnTabClick(self,button)
 					</OnClick>
+					<OnLoad>
+						self.tooltip=_G.SEND_LABEL
+					</OnLoad>
+				</Scripts>
+			</Button>
+			<Button relativeKey="tabFILTER" name="$parentTab3" inherits="CharacterFrameTabButtonTemplate" id="3" text="FILTER">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentTab2" relativePoint="RIGHT" x="-16" y="0"/>
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText(self.tooltip, 0,1.0,0 );
+					</OnEnter>
+					<OnLeave function="GameTooltip_Hide"/>
+					<OnClick>
+						MailCommander:OnTabClick(self,button)
+					</OnClick>
+					<OnLoad>
+						self.tooltip=_G.FILTER
+					</OnLoad>
 				</Scripts>
 			</Button>
 			<Frame parentKey="Filter" name="$parentFilter" inherits="UIDropDownMenuTemplate" enableMouse="true">

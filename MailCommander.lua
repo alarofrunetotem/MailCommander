@@ -10,7 +10,8 @@ if LibDebug then LibDebug() end
 local print=function() end
 local DevTools_Dump=function() end
 --@end-non-debug@]===]
-local addon=LibStub("LibInit"):NewAddon(ns,me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0",{noswitch=true,profile=true}) --#MailCommander
+--local addon=LibStub("LibInit"):NewAddon(ns,me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0",{noswitch=true,profile=true}) --#MailCommander
+local addon=LibStub("LibInit"):NewAddon(me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0") --#MailCommander
 local C=addon:GetColorTable()
 local L=addon:GetLocale()
 local I=LibStub("LibItemUpgradeInfo-1.0")
@@ -357,7 +358,7 @@ function addon:OnInitialized()
 	end
 	self:AddBoolean("MAILBODY",true,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
 	self:AddBoolean("MINIMAP",false,L["Hide minimap icon"],L["If you hide minimap icon, use /mac gui to access configuration and /mac requests to open requests panel"])
-	self:AddRange("MINLEVEL",90,1,100,L["Characters minimum level"],L["Only consider characters above this level"])
+	self:AddSlider("MINLEVEL",90,1,100,L["Characters minimum level"],L["Only consider characters above this level"])
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
 	self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:ScheduleTimer("InitData",2)

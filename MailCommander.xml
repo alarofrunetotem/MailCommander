@@ -250,6 +250,7 @@
 					<OnEnter>
 						MailCommander:OnSendEnter(self)
 					</OnEnter>
+					<OnLeave function="GameTooltip_Hide"/>
 				</Scripts>
 			</Button>
 			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">

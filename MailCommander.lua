@@ -138,15 +138,17 @@ function ldb:OnTooltipShow(...)
 end
 
 --addon:SetCustomEnvironment(ns)
-function addon:InitDbDefaults(default)
+function addon:SetDbDefaults(default)
 	default.profile.ldb={hide=false}
+	return true
 end
 local function IsDisabled(itemid)
 	if not itemid then return false end
-	if currentTab==INEED then
-		return db.disabled[itemid]['ALL'][currentRequester] or false
-	else
-		return db.disabled[itemid]['ALL'][currentReceiver] or db.disabled[itemid][thisToon][currentReceiver] or false
+	if currentTab==INEED or currentTab ==ISEND then
+		return db.disabled[itemid]['ALL'][currentRequester] and 2 or false
+	end
+	if currentTab ==ISEND then
+		return db.disabled[itemid][thisToon][currentReceiver] and 1 or false
 	end
 	return false
 end
@@ -161,7 +163,7 @@ local function AddButton(i,data,section)
 		if hide then return 1 end
 		mcf.Items[i]=CreateFrame("Frame",nil,mcf,"MailCommanderItemTemplate")
 		mcf.Items[i].ItemButton:RegisterForClicks("LeftButtonUp","RightButtonUp")
-		mcf.Items[i].ItemButton.isBag=section=="items"
+		--mcf.Items[i].ItemButton.isBag=section=="items"
 	end
 	local frame=mcf.Items[i]
 	if hide then
@@ -391,9 +393,9 @@ function addon:TRADE_SKILL_UPDATE()
 end
 function addon:CheckTab(event)
 	if event =="MAIL_SHOW" then
-		PanelTemplates_EnableTab(mcf,ISEND)
+		--PanelTemplates_EnableTab(mcf,ISEND)
 	else
-		PanelTemplates_DisableTab(mcf,ISEND)
+		--PanelTemplates_DisableTab(mcf,ISEND)
 		PanelTemplates_SetTab(mcf,INEED)
 	end
 end
@@ -443,6 +445,9 @@ function addon:OnLoad(frame)
 	UIDropDownMenu_SetText(frame.Filter,self:GetFilter())
 	PanelTemplates_SetNumTabs(frame, 3);
 	PanelTemplates_SetTab(frame, 1);
+	mcf.tabNEED.tooltip=L["Configures REQUESTS.\n Set what each toon needs"]
+	mcf.tabSEND.tooltip=L["Configures sendings.\n Manages what each toon will send to the others"]
+	mcf.tabFILTER.tooltip=L["Manages which toon are considered as possible requesters"]
 	local texture=mcf:CreateTexture(nil,"BACKGROUND")
 	--texture:SetTexture("Interface\\QuestFrame\\QuestBG")
 	texture:SetTexture("Interface\\MailFrame\\UI-MailFrameBG",false)
@@ -601,7 +606,7 @@ function addon:RenderNeedBox()
 	mcf.Delete:Show()
 	mcf.Filter:Show()
 	mcf.Info:Hide()
-	mcf.NameText:SetText(L["Items needed by this toon"])
+	mcf.NameText:SetText(L["Items needed by selected toon"])
 	local toon=self:GetFilter()
 	mcf:SetAttribute("section","items")
 	self:RenderButtonList(db.requests[toon])
@@ -622,7 +627,7 @@ function addon:RenderSendBox()
 	mcf.Delete:Hide()
 	mcf.Filter:Show()
 	mcf.Info:Hide()
-	mcf.NameText:SetText(L["Items you can send to this toon"])
+	mcf.NameText:SetText(L["Items you can send to selected toon"])
 	local toon=self:GetFilter()
 	mcf:SetAttribute("section","items")
 	self:RenderButtonList(db.requests[toon])
@@ -796,7 +801,7 @@ function addon:ClickedOnItem(itemButton,button)
 	if currentTab==ISEND then
 		if (button=="LeftButton") then
 			db.disabled[itemId][thisToon][currentReceiver]=not db.disabled[itemId][thisToon][currentReceiver]
-			if db.disabled[itemId][thisToon][currentReceiver] then
+			if IsDisabled(itemId) then
 				itemButton.Disabled:Show()
 			else
 				itemButton.Disabled:Hide()
@@ -824,6 +829,11 @@ function addon:ClickedOnItem(itemButton,button)
 		if button=="LeftButton" then
 			if (itemId and currentRequester) then
 				db.disabled[itemId]['ALL'][currentRequester]=not db.disabled[itemId]['ALL'][currentRequester]
+				if IsDisabled(itemId) then
+					itemButton.Disabled:Show()
+				else
+					itemButton.Disabled:Hide()
+				end
 				return self:OnItemEnter(itemButton,button)
 			else
 			--@debug@

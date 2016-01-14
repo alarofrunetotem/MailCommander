@@ -179,7 +179,7 @@
 				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 			</Button>
-			<Button relativeKey="tabNEED" name="$parentTab1" inherits="CharacterFrameTabButtonTemplate" id="1" text="NEED">
+			<Button parentKey="tabNEED" name="$parentTab1" inherits="CharacterFrameTabButtonTemplate" id="1" text="NEED">
 				<Anchors>
 					<Anchor point="CENTER" relativePoint="BOTTOMLEFT" x="50" y="-15"/>
 				</Anchors>
@@ -197,7 +197,7 @@
 					</OnLoad>
 				</Scripts>
 			</Button>
-			<Button relativeKey="tabSEND" name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2" text="SEND_LABEL">
+			<Button parentKey="tabSEND" name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2" text="SEND_LABEL">
 				<Anchors>
 					<Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT" x="-16" y="0"/>
 				</Anchors>
@@ -215,7 +215,7 @@
 					</OnLoad>
 				</Scripts>
 			</Button>
-			<Button relativeKey="tabFILTER" name="$parentTab3" inherits="CharacterFrameTabButtonTemplate" id="3" text="FILTER">
+			<Button parentKey="tabFILTER" name="$parentTab3" inherits="CharacterFrameTabButtonTemplate" id="3" text="FILTER">
 				<Anchors>
 					<Anchor point="LEFT" relativeTo="$parentTab2" relativePoint="RIGHT" x="-16" y="0"/>
 				</Anchors>
@@ -274,7 +274,9 @@
 			</OnLoad>
 			<OnSHow>
 				if not SendMailFrame:IsVisible() then
-					PanelTemplates_DisableTab(self,2)
+					self.Send:Disable()
+				else
+					self.Send:Enable()
 				end
 			</OnSHow>
 			<OnHide>

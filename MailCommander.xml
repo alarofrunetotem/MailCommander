@@ -85,7 +85,7 @@
 					</Anchors>
 				</FontString>
 				<FontString parentKey="Info" inherits="GameFontWhite" text="Placeholder" justifyH="CENTER">
-					<Size x="100" y="30"/>
+					<Size x="130" y="30"/>
 					<Anchors>
 						<Anchor point="TOP" relativeKey="$parent" relativePoint="TOP" x="0" y="-20" />
 						<Anchor point="LEFT" x="0" y="0" />
@@ -235,13 +235,13 @@
 			</Button>
 			<Frame parentKey="Filter" name="$parentFilter" inherits="UIDropDownMenuTemplate" enableMouse="true">
 				<Anchors>
-					<Anchor point="TOPLEFT" x="0" y="-28"/>
+					<Anchor point="TOPLEFT" x="-10" y="-28"/>
 				</Anchors>
 			</Frame>
 			<Button parentKey="Send" inherits="UIPanelButtonTemplate" text="SEND_LABEL" hidden="true">
-				<Size x="120" y="30"/>
+				<Size x="100" y="30"/>
 				<Anchors>
-					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-15" y="-28"/>
+					<Anchor point="TOPRIGHt"  relativePoint="TOPRIGHT" x="-55" y="-28"/>
 				</Anchors>
 				<Scripts>
 					<OnClick>
@@ -253,10 +253,21 @@
 					<OnLeave function="GameTooltip_Hide"/>
 				</Scripts>
 			</Button>
-			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">
-				<Size x="120" y="30"/>
+			<CheckButton name="$parentAll" parentKey="All" inherits="ChatConfigSmallCheckButtonTemplate" text="ALL" hidden="true">
 				<Anchors>
-					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-15" y="-28"/>
+					<Anchor point="TOPRIGHT"  relativePoint="TOPRIGHT" x="-35" y="-33"/>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						self.func=function(self,value) MailCommander:OnAllClick(self,value) end
+						self.tooltip="Placeholder"
+					</OnLoad>
+				</Scripts>
+			</CheckButton>
+			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">
+				<Size x="130" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-10" y="-28"/>
 				</Anchors>
 				<Scripts>
 					<OnClick>

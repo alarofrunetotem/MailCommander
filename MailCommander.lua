@@ -43,7 +43,7 @@ local dbDefaults={
 			}
 		},
 		ignored={},
-		lastReceiver=NONE
+		lastReceiver='NONE'
 	}
 }
 local LDB=LibStub:GetLibrary("LibDataBroker-1.1",true)
@@ -283,7 +283,6 @@ function addon:InitData()
 		local realmList=_G.DataStore:GetRealmsConnectedWith(thisRealm)
 		tinsert(realmList,thisRealm)
 		for _,realm in pairs(realmList) do
-			print(realm)
 			for name,key in pairs(d:GetCharacters(realm)) do
 				name=name..'-'..realm
 				if name~=thisToon then -- Do not overwrite current data with (possibly) stale data
@@ -466,8 +465,20 @@ function addon:GetFilter()
 		currentRequester = currentRequester or thisToon ..'-'..thisRealm
 		return currentRequester
 	else
-		currentReceiver= currentReceiver or currentRequester or 'NONE'
-		if currentReceiver==GetUnitName("player") then currentReceiver='NONE' end
+		currentReceiver=currentReceiver or currentRequester or next(sendable) or  'NONE'
+		if currentReceiver=='NONE' and self:GetBoolean("ALLSEND") then
+			for name,data in pairs(toonTable) do
+				if data.level >= self:GetNumber("MINLEVEL") then
+					currentReceiver=name
+					break
+				end
+			end
+		end
+		if not self:GetBoolean("ALLSEND") and not sendable[currentReceiver] then
+			currentReceiver='NONE'
+		else
+			if currentReceiver==thisToon then currentReceiver='NONE' end
+		end
 		return currentReceiver
 	end
 end
@@ -475,8 +486,8 @@ function addon:SetFilter(info,name)
 	if currentTab==INEED then
 		currentRequester=name
 	else
-		currentReceiver=name
 		lastReceiver=currentReceiver
+		currentReceiver=name
 	end
 	UIDropDownMenu_SetText(mcf.Filter,name)
 	self:UpdateMailCommanderFrame()
@@ -507,6 +518,9 @@ function addon:RefreshSendable()
 	end
 end
 function addon:InitializeDropDown(this,level,menulist)
+	--@debug@
+	print("Filling drop down list")
+	--@end-debug@
 	if this then print(this:GetName()) end
 	local mcf=MailCommanderFrame
 	local info = UIDropDownMenu_CreateInfo();
@@ -524,7 +538,7 @@ function addon:InitializeDropDown(this,level,menulist)
 	for _,name in ipairs(toonIndex) do
 		local data=toonTable[name]
 		if not IsIgnored(name) and (currentTab==INEED or name~=thisToon) then
-			if currentTab==INEED or sendable[name] then
+			if currentTab==INEED or sendable[name] or self:GetBoolean("ALLSEND") then
 			-- Per realm header
 				if realm~=data.realm then
 					realm=data.realm
@@ -554,6 +568,9 @@ function addon:InitializeDropDown(this,level,menulist)
 end
 
 function addon:RenderButtonList(store,page)
+	--@debug@
+	print("Refreshing view")
+	--@end-debug@
 	mcf.store=store
 	if currentRequester==thisToon then mcf.Delete:Disable() else mcf.Delete:Enable() end
 	local total=#store
@@ -952,7 +969,7 @@ function addon:OnItemDropped(frame)
 	ClearCursor()
 	if currentTab==ISEND then return end
 	local toon=self:GetFilter()
-	if toon==NONE then return end
+	if toon=='NONE' then return end
 	if (type=="item" and mcf.selectedTab==INEED) then
 		local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount,itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(itemID)
 		if (not I:IsBop(itemLink)) then

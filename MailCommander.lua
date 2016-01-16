@@ -146,7 +146,7 @@ end
 local function IsDisabled(itemid)
 	if not itemid then return false end
 	if currentTab==INEED or currentTab ==ISEND then
-		return db.disabled[itemid]['ALL'][currentRequester] and 2 or false
+		if db.disabled[itemid]['ALL'][currentRequester] then return 2 end
 	end
 	if currentTab ==ISEND then
 		return db.disabled[itemid][thisToon][currentReceiver] and 1 or false

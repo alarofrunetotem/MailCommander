@@ -120,7 +120,7 @@ function ldb:OnTooltipShow(...)
 	else
 		self:AddLine(L["Items available for:"],C:Green())
 		for name,data in pairs(db.toons) do
-			if sendable[name] and name~=thisToon then
+			if sendable[name] and name~=thisToon and toonTable[name] then
 				self:AddLine(toonTable[name].text)
 				for _,d in pairs(db.requests[name]) do
 					local c=GetItemCount(d.i)
@@ -339,12 +339,10 @@ function addon:OnInitialized()
 		-- Toons list
 		if type(olddb.toons)=="table" then
 			for name,data in pairs(olddb.toons) do
-				print(name)
 				db.toons[name..'-'..realm]=CopyTable(data)
 			end
 		end
 		if type(olddb.requests)=="table" then
-			print("Requests list",olddb.requests)
 			-- Requests list
 			for name,data in pairs(olddb.requests) do
 				db.requests[name..'-'..realm]=CopyTable(data)
@@ -465,7 +463,14 @@ function addon:GetFilter()
 		currentRequester = currentRequester or thisToon ..'-'..thisRealm
 		return currentRequester
 	else
-		currentReceiver=currentReceiver or currentRequester or next(sendable) or  'NONE'
+		if not sendable[currentReceiver] then
+			if sendable[currentRequester] then
+				currentReceiver=currentRequester
+			else
+				currentReceiver=nil
+			end
+		end
+		currentReceiver=currentReceiver or next(sendable) or  'NONE'
 		if currentReceiver=='NONE' and self:GetBoolean("ALLSEND") then
 			for name,data in pairs(toonTable) do
 				if data.level >= self:GetNumber("MINLEVEL") then
@@ -521,7 +526,6 @@ function addon:InitializeDropDown(this,level,menulist)
 	--@debug@
 	print("Filling drop down list")
 	--@end-debug@
-	if this then print(this:GetName()) end
 	local mcf=MailCommanderFrame
 	local info = UIDropDownMenu_CreateInfo();
 	local current = addon:GetFilter();

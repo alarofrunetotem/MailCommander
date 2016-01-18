@@ -1,3 +1,4 @@
+local __FILE__=tostring(debugstack(1,2,0):match("(.*):1:")) -- Always check line number in regexp and file
 local me,ns=...
 --@debug@
 --Postal_BlackBookButton
@@ -10,8 +11,14 @@ if LibDebug then LibDebug() end
 local print=function() end
 local DevTools_Dump=function() end
 --@end-non-debug@]===]
---local addon=LibStub("LibInit"):NewAddon(ns,me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0",{noswitch=true,profile=true}) --#MailCommander
-local addon=LibStub("LibInit"):NewAddon(me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0") --#MailCommander
+local addon --#MailCommander
+local LibInit,minor=LibStub("LibInit",true)
+assert(LibInit,me .. ": Missing LibInit, please reinstall")
+if minor >=21 then
+	addon=LibStub("LibInit"):NewAddon(ns,me,{noswitch=true,profile=true},"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
+else
+	addon=LibStub("LibInit"):NewAddon(me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
+end
 local C=addon:GetColorTable()
 local L=addon:GetLocale()
 local I=LibStub("LibItemUpgradeInfo-1.0")
@@ -319,10 +326,17 @@ function addon:ApplyMINLEVEL(value)
 
 end
 function addon:OnInitialized()
+--@debug@
+	local _,version=LibStub("LibInit")
+	print("Using LibInit version",version)
+--@end-debug@
 	-- AceDb does not support connected realms, so I am using a namespace
+	local realmkey=GetRealmName()
 	local r=GetAutoCompleteRealms()
-	table.sort(r)
-	local realmkey=strconcat(unpack(r))
+	if r then
+		table.sort(r)
+		realmkey=strconcat(unpack(r))
+	end
 	local newdb=self.db:GetNamespace(realmkey,true)
 	if not newdb then
 		db=self.db:RegisterNamespace(realmkey,dbDefaults).global
@@ -334,7 +348,7 @@ function addon:OnInitialized()
 	--DevTools_Dump(db.toons)
 	local olddb=self.db.factionrealm
 	if rawget(olddb,'toons') then
-		self:Popup("MailCommander\n Data for beta were imported, but you need to check them",10)
+		self:Popup("MailCommander\n Data from beta were imported, but you need to check them",10)
 		local realm=GetRealmName()
 		-- Toons list
 		if type(olddb.toons)=="table" then

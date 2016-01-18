@@ -103,6 +103,7 @@ function ldb:Update()
 	if oldshouldsend ~= shouldsend then
 		ldb.text=shouldsend and C(L["You have items to send"],"GREEN") or C(L["Nothing to send"],"SILVER")
 		local button =icon:GetMinimapButton(me)
+		if not button then return end
 		if shouldsend then
 			button.icon:SetVertexColor(0,1,0)
 		else
@@ -318,7 +319,12 @@ function addon:InitData()
 	self:ScheduleRepeatingTimer("RefreshSendable",2)
 end
 function addon:ApplyMINIMAP(value)
-	if value then icon:Hide(me) else icon:Show(me) end
+	if value then
+		icon:Hide(me)
+	else
+		icon:Show(me)
+	end
+	self.db.profile.ldb={hide=value}
 end
 function addon:ApplyMINLEVEL(value)
 	loadDropList()

@@ -36,8 +36,7 @@ local dbDefaults={
 	global= {
 		dbversion=1,
 		toons={
-			['*']= -- char name plus realm
-				{}
+			['*']= {}-- char name plus realm
 		},
 		requests={ -- what this toon need: requests[toon][itemid]){itemdata}
 			['**']={}
@@ -47,6 +46,17 @@ local dbDefaults={
 				['*'] = { --sender
 						--receiver toon
 				}
+			}
+		},
+		cap={
+			['*']= { -- char name plus realm
+				--itemId = number
+			}
+
+		},
+		keep={
+			['*']= { -- char name plus realm
+				--itemId = number
 			}
 		},
 		ignored={},
@@ -197,9 +207,9 @@ local function AddButton(i,data,section)
 			else
 				frame.ItemButton.Disabled:Hide()
 			end
-			local count=GetItemCount(data.i,false,false)
+			local count=currentTab==ISEND and GetItemCount(data.i,false,false) or db.cap[currentRequester][data.i]
 			SetItemButtonCount(frame.ItemButton,count)
-			SetItemButtonDesaturated(frame.ItemButton,count < 1)
+			SetItemButtonDesaturated(frame.ItemButton,count and count < 1 or false)
 		else
 			frame.ItemButton:SetAttribute("itemlink",nil)
 			SetItemButtonTexture(frame.ItemButton,nil)
@@ -377,7 +387,7 @@ function addon:OnInitialized()
 	if icon then
 		icon:Register(me,ldb,self.db.profile.ldb)
 	end
-	self:AddBoolean("MAILBODY",true,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
+	self:AddBoolean("MAILBODY",false,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
 	self:AddBoolean("MINIMAP",false,L["Hide minimap icon"],L["If you hide minimap icon, use /mac gui to access configuration and /mac requests to open requests panel"])
 	self:AddSlider("MINLEVEL",90,1,100,L["Characters minimum level"],L["Only consider characters above this level"])
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
@@ -400,6 +410,17 @@ function addon:OnInitialized()
 	self:HookScript(_G.InboxFrame,"OnHide",print)
 	--@end-debug@
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
+	addon.xdb=db
+	--[[
+	hooksecurefunc(GameTooltip,"SetHyperlink",function (...) print("Hyper",...) end)
+	hooksecurefunc(GameTooltip,"SetItemByID",function (...) print("Itemid",...) end)
+	GameTooltip:HookScript("OnTooltipSetItem", function (...) print("1",...) end)
+	ItemRefTooltip:HookScript("OnTooltipSetItem", function (...) print("2",...) end)
+	ItemRefShoppingTooltip1:HookScript("OnTooltipSetItem", function (...) print("3",...) end)
+	ItemRefShoppingTooltip2:HookScript("OnTooltipSetItem", function (...) print("4",...) end)
+	ShoppingTooltip1:HookScript("OnTooltipSetItem", function (...) print("5",...) end)
+	ShoppingTooltip2:HookScript("OnTooltipSetItem", function (...) print("6",...) end)
+	--]]
 	return true
 end
 function addon:PLAYER_LEVEL_UP(event,level)
@@ -437,7 +458,6 @@ function addon:OpenSender(tab)
 	end
 	mcf:ClearAllPoints()
 	mcf:SetPoint("TOPLEFT",MailFrame,"TOPRIGHT",0,0)
-	mcf:SetHeight(MailFrame:GetHeight())
 	PanelTemplates_SetTab(mcf,2)
 	PanelTemplates_SetTab(mcf,ISEND)
 	currentTab=mcf.selectedTab
@@ -527,9 +547,6 @@ function addon:RefreshSendable()
 					for _,d in ipairs(db.requests[name]) do
 						local count=GetItemCount(d.i)
 						if count and count > 0 then
-							--@debug@
-							print(name,"set as sendable due to",d.l,"x",count)
-							--@end-debug@
 							sendable[name]=true
 							shouldsend=true
 							break
@@ -626,6 +643,7 @@ function addon:RenderButtonList(store,page)
 			nextpage=true
 		end
 	end
+	i=i-page*slots
 	while i<=#mcf.Items do
 		i=i+AddButton(i,false,section)
 	end
@@ -852,7 +870,26 @@ function addon:ClickedOnToon(itemButton,button)
 end
 function addon:ClickedOnItem(itemButton,button)
 	local itemId=self:GetItemID(itemButton:GetAttribute("itemlink"))
-	if not itemId then return end
+	if not itemId or itemId==0 then
+		if currentTab==INEED then
+			--@debug@
+			local type,itemID,itemLink=GetCursorInfo()
+			print("click",type,itemID,itemLink)
+			self:OnItemDropped(itemButton)
+--@end-debug@
+		end
+		return
+	end
+	print ("Click",itemId)
+	if IsShiftKeyDown() then
+		itemButton.SplitStack=function(this,qt)
+			SetItemButtonCount(this,qt)
+			local itemId=self:GetItemID(this:GetAttribute("itemlink"))
+			db.cap[currentRequester][itemId]=qt
+		end
+		OpenStackSplitFrame(1000,itemButton,"CENTER","CENTER")
+		return
+	end
 	if currentTab==ISEND then
 		if (button=="LeftButton") then
 			db.disabled[itemId][thisToon][currentReceiver]=not db.disabled[itemId][thisToon][currentReceiver]
@@ -990,13 +1027,25 @@ function addon:UpdateMailCommanderFrame()
 end
 function addon:OnItemDropped(frame)
 	local type,itemID,itemLink=GetCursorInfo()
+--@debug@
+	print("drop",type,itemID,itemLink)
+--@end-debug@
 	ClearCursor()
 	if currentTab==ISEND then return end
 	local toon=self:GetFilter()
 	if toon=='NONE' then return end
-	if (type=="item" and mcf.selectedTab==INEED) then
-		local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount,itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(itemID)
+	if mcf.selectedTab==INEED then
+		local itemLink
+		--local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount,itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(itemID)
+		if type=="item" then
+			itemLink = select(2,GetItemInfo(itemID))
+		elseif type=="merchant" then
+			itemLink = GetMerchantItemLink(itemID)
+		else
+			return
+		end
 		if (not I:IsBop(itemLink)) then
+			local itemID=self:GetItemID(itemLink)
 			--@debug@
 			print(toon,itemID)
 			--@end-debug@
@@ -1005,6 +1054,7 @@ function addon:OnItemDropped(frame)
 					return
 				end
 			end
+			local itemTexture=GetItemIcon(itemID)
 			tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
 			dirty=true
 		else

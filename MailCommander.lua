@@ -880,6 +880,7 @@ function addon:ClickedOnItem(itemButton,button)
 		end
 		return
 	end
+	--@debug@
 	print ("Click",itemId)
 	if IsShiftKeyDown() then
 		itemButton.SplitStack=function(this,qt)
@@ -890,6 +891,7 @@ function addon:ClickedOnItem(itemButton,button)
 		OpenStackSplitFrame(1000,itemButton,"CENTER","CENTER")
 		return
 	end
+	--@end-debug@
 	if currentTab==ISEND then
 		if (button=="LeftButton") then
 			db.disabled[itemId][thisToon][currentReceiver]=not db.disabled[itemId][thisToon][currentReceiver]

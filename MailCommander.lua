@@ -523,7 +523,7 @@ function addon:OnInitialized()
 			GameTooltip:HookScript("OnShow",dragManage)
 		end
 	end
-	--@end-debug
+	--@end-debug@
 	return true
 end
 

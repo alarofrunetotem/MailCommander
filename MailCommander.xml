@@ -1,10 +1,19 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
 	<Script file="MailCommander.lua"/>
-	<Button name="MailCommanderItemButtonTemplate" virtual="true" inherits="ItemButtonTemplate">
+	<Font name="NumberFontNormalGreen" inherits="NumberFontNormal" virtual="true" >
+		<Color r="0.0" g="1.0" b="0"/>
+	</Font>
+	<Button name="MailCommanderItemButtonTemplate" virtual="true">
 		<!-- <CheckedTexture alphaMode="ADD" file="Interface\Buttons\CheckButtonHilight"/> -->
 		<!--<HighlightTexture file="Interface\PaperDollInfoFrame\UI-GearManager-LeaveItem-Transparent"/>-->
+		<Size>
+			<AbsDimension x="37" y="37"/>
+		</Size>
 		<Layers>
+			<Layer level="BORDER">
+				<Texture name="$parentIconTexture" parentKey="icon"/>
+			</Layer>
 			<Layer level="OVERLAY">
 				<Texture parentKey="Disabled" file="Interface\PaperDollInfoFrame\UI-GearManager-LeaveItem-Transparent" hidden="true">
 					<Size x="45" y="45"/>
@@ -13,7 +22,50 @@
 					</Anchors>
 				</Texture>
 			</Layer>
+			<Layer level="ARTWORK" textureSubLevel="2">
+				<FontString inherits="NumberFontNormal" justifyH="RIGHT" hidden="true" parentKey="Stock">
+					<Anchors>
+						<Anchor point="BOTTOMRIGHT">
+							<Offset>
+								<AbsDimension x="0" y="2"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<FontString inherits="NumberFontNormalYellow" justifyH="LEFT" hidden="true" parentKey="Keep">
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="0" y="-2"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<FontString inherits="NumberFontNormalGreen" justifyH="RIGHT" hidden="true" parentKey="Cap">
+					<Anchors>
+						<Anchor point="TOPRIGHT">
+							<Offset>
+								<AbsDimension x="0" y="-2"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+			</Layer>
 		</Layers>
+		<NormalTexture name="$parentNormalTexture" file="Interface\Buttons\UI-Quickslot2">
+			<Size>
+				<AbsDimension x="64" y="64"/>
+			</Size>
+			<Anchors>
+				<Anchor point="CENTER">
+					<Offset>
+						<AbsDimension x="0" y="-1"/>
+					</Offset>
+				</Anchor>
+			</Anchors>
+		</NormalTexture>
+		<PushedTexture file="Interface\Buttons\UI-Quickslot-Depress"/>
+		<HighlightTexture file="Interface\Buttons\ButtonHilight-Square" alphaMode="ADD"/>
 	</Button>
 	<Frame name="MailCommanderItemTemplate" virtual="true">
 		<Size x="153" y="64"/>
@@ -40,7 +92,7 @@
 			</Layer>
 		</Layers>
 		<Frames>
-			<Button parentKey="ItemButton" inherits="MailCommanderItemButtonTemplate">
+			<Button name="$parentItemButton" parentKey="ItemButton" inherits="MailCommanderItemButtonTemplate">
 				<Anchors>
 					<Anchor point="CENTER" relativekey="$parent.SlotTexture" x="0" y="0"/>
 				</Anchors>
@@ -57,6 +109,10 @@
 					<OnReceiveDrag>
 						MailCommander:OnItemDropped(self)
 					</OnReceiveDrag>
+					<OnLoad>
+						self:RegisterForClicks("LeftButtonUp","RightButtonUp")
+
+					</OnLoad>
 				</Scripts>
 			</Button>
 		</Frames>
@@ -67,6 +123,9 @@
 			<OnLeave>
 				MailCommander:CloseTip()
 			</OnLeave>
+			<OnLoad>
+				print("Loaded itembutton with name",self:GetName())
+			</OnLoad>
 		</Scripts>
 	</Frame>
 	<Frame name="MailCommander" virtual="true" toplevel="true" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="PortraitFrameTemplate"><!-- inherits="ButtonFrameTemplate">-->
@@ -291,12 +350,59 @@
 				end
 			</OnSHow>
 			<OnHide>
-				CloseAllBags(self)
+				MailCommander:Close(self)
 			</OnHide>
 			<OnReceiveDrag>
 			</OnReceiveDrag>
 			<OnMouseWheel>
 			</OnMouseWheel>
+		</Scripts>
+	</Frame>
+	<Frame name="MailCommanderSplitLabel" frameStrata="HIGH" parent="StackSplitFrame" toplevel="true" hidden="true" clampedToScreen="true">
+		<Size>
+			<AbsDimension x="172" y="64"/>
+		</Size>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture file="Interface\MoneyFrame\UI-MoneyFrame2">
+					<Size>
+						<AbsDimension x="256" y="64"/>
+					</Size>
+					<TexCoords left="0" right="0.671875" top="0.10" bottom="0.75"/>
+				</Texture>
+				<FontString parentKey="Text" inherits="GameFontHighlight" justifyH="CENTER" text="Prova">
+					<Anchors>
+						<Anchor point="BOTTOM" x="0" y="15"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Frames>
+			<Button parentKey="Reset" inherits="UIPanelButtonTemplate" text="RESET" >
+				<Size x="64" y="24"/>
+				<Anchors>
+					<Anchor point="TOP" x="0" y="-5"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:OnResetClick(StackSplitFrame.owner)
+					</OnClick>
+					<OnEnter>
+						MailCommander:OnResetEnter(self:GetParent())
+					</OnEnter>
+					<OnLeave function="GameTooltip_Hide"/>
+				</Scripts>
+			</Button>
+		</Frames>
+		<Anchors>
+			<Anchor point="TOP" relativePoint="BOTTOM" x="0" y="18"/>
+		</Anchors>
+		<Scripts>
+			<OnHide>
+				self:Hide()
+				StackSplitText:SetTextColor(1,1,1)
+			</OnHide>
+
 		</Scripts>
 	</Frame>
 </Ui>

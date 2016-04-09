@@ -48,15 +48,16 @@ local dbDefaults={
 				}
 			}
 		},
-		cap={
+		cap={ -- This receeiver will be deleted once received "cap" items
 			['*']= { -- char name plus realm
 				--itemId = number
 			}
 
 		},
-		keep={
+		keep={ -- This toon will keep at least "keep" items
 			['*']= { -- char name plus realm
 				--itemId = number
+				['*'] = 0
 			}
 		},
 		ignored={},
@@ -75,7 +76,7 @@ local ButtonFrameTemplate_HidePortrait,SendMailFrame,UIParent,InboxFrame=ButtonF
 local	UIDropDownMenu_CreateInfo,UIDropDownMenu_SetWidth=UIDropDownMenu_CreateInfo,UIDropDownMenu_SetWidth
 local UIDropDownMenu_Initialize,UIDropDownMenu_SetText=UIDropDownMenu_Initialize,UIDropDownMenu_SetText
 local PanelTemplates_SetNumTabs,PanelTemplates_SetTab=PanelTemplates_SetNumTabs,PanelTemplates_SetTab
-local SetItemButtonDesaturated,SetItemButtonCount=SetItemButtonDesaturated,SetItemButtonCount
+local SetItemButtonDesaturated,SetItemButtonCount,SetItemButtonStock=SetItemButtonDesaturated,SetItemButtonCount,SetItemButtonStock
 local GetItemCount=GetItemCount
 local MailFrame=MailFrame
 local wipe,tinsert,pairs,ipairs,strcmputf8i=wipe,tinsert,pairs,ipairs,strcmputf8i
@@ -84,7 +85,9 @@ local minibag="Interface\\PaperDollInfoFrame\\UI-GearManager-ItemIntoBag"
 local undo="Interface\\PaperDollInfoFrame\\UI-GearManager-Undo"
 local ignore="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Opaque"
 local ignore2="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent"
-local KEY_BUTTON1,KEY_BUTTON2=KEY_BUTTON1,KEY_BUTTON2
+local KEY_BUTTON1 = "\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:228:283\124t" -- left mouse button
+local KEY_BUTTON2 = "\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:330:385\124t" -- right mouse button
+local CTRL_KEY_TEXT,SHIFT_KEY_TEXT=CTRL_KEY_TEXT,SHIFT_KEY_TEXT
 local FILTER,SEND,NEED=FILTER,SEND_LABEL,NEED
 local kpairs=addon:getKpairs()
 -- locals
@@ -107,7 +110,8 @@ local oldshouldsend
 local sendable={} -- For each toon, it's true if the current one has at least one object to send
 local toonTable={} -- precaculated toon table for initDropDown to avoid bursting memory
 local toonIndex={}
-
+local tobesent={}
+local sending=setmetatable({},{__index=function() return 0 end})
 -- ldb extension
 function ldb:Update()
 	if oldshouldsend ~= shouldsend then
@@ -155,7 +159,29 @@ function ldb:OnTooltipShow(...)
 		self:AddLine(L["ATTENTION: Neutral characters cant use mail"],C:Orange())
 	end
 end
-
+local function SetItemCounts(frame,cap,keep,stock)
+		if not frame then return end
+		if cap and cap >0 then
+			--frame.Need:SetFormattedText(MERCHANT_STOCK, need)
+			frame.Cap:SetText(cap)
+			frame.Cap:Show()
+		else
+			frame.Cap:Hide()
+		end
+		if keep and keep >0 then
+			--frame.Keep:SetFormattedText(MERCHANT_STOCK, keep)
+			frame.Keep:SetText(keep)
+			frame.Keep:Show()
+		else
+			frame.Keep:Hide()
+		end
+		if stock and stock > -1 then
+			frame.Stock:SetText(stock>9999 and '*' or stock)
+			frame.Stock:Show()
+		else
+			frame.Stock:Hide()
+		end
+	end
 --addon:SetCustomEnvironment(ns)
 function addon:SetDbDefaults(default)
 	default.profile.ldb={hide=false}
@@ -173,6 +199,7 @@ local function IsDisabled(itemid)
 end
 local function IsIgnored(toon,ignorelevel)
 	if not toon then return false end
+	if toon == thisToon then return false end
 	return db.ignored[toon] or (not ignorelevel and addon:GetNumber("MINLEVEL") > toonTable[toon].level)
 end
 
@@ -181,8 +208,6 @@ local function AddButton(i,data,section)
 	if not mcf.Items[i] then
 		if hide then return 1 end
 		mcf.Items[i]=CreateFrame("Frame",nil,mcf,"MailCommanderItemTemplate")
-		mcf.Items[i].ItemButton:RegisterForClicks("LeftButtonUp","RightButtonUp")
-		--mcf.Items[i].ItemButton.isBag=section=="items"
 	end
 	local frame=mcf.Items[i]
 	if hide then
@@ -193,10 +218,11 @@ local function AddButton(i,data,section)
 		frame:SetPoint("TOPLEFT",mcf.Items[i-1],"TOPRIGHT",10,0)
 	elseif i>1 then -- odd
 		frame:SetPoint("TOPLEFT",mcf.Items[i-2],"BOTTOMLEFT",0,20)
-	else -- first one
-		frame:SetPoint("TOPLEFT",mcf,"TOPLEFT",10,-60)
+--	else -- first one
+--		frame:SetPoint("TOPLEFT",mcf,"TOPLEFT",10,-60)
 	end
 	frame.ItemButton:SetAttribute("section",section)
+	frame.ItemButton.MailCommanderDragTarget=true
 	if section=="items" then
 		if type(data)=='table'  then
 			frame.ItemButton:SetAttribute("itemlink",data.l)
@@ -207,17 +233,30 @@ local function AddButton(i,data,section)
 			else
 				frame.ItemButton.Disabled:Hide()
 			end
-			local count=currentTab==ISEND and GetItemCount(data.i,false,false) or db.cap[currentRequester][data.i]
-			SetItemButtonCount(frame.ItemButton,count)
-			SetItemButtonDesaturated(frame.ItemButton,count and count < 1 or false)
+			addon:SetLimit(data.i)
+			local count=GetItemCount(data.i)
+			local cap=(db.cap[currentTab==INEED and currentRequester or currentReceiver][data.i])
+			local keep=db.keep[thisToon][data.i] or 0
+			count=count-keep-sending[data.i]
+			if tobesent[data.i] then
+				count=tobesent[data.i]-sending[data.i]
+			end
+			if cap and count >cap then
+				count=cap
+			elseif count <0 then
+				count=0
+			end
+			SetItemCounts(frame.ItemButton,cap,keep,count)
+			SetItemButtonDesaturated(frame.ItemButton,count and count < 1 and currentTab==ISEND)
 		else
 			frame.ItemButton:SetAttribute("itemlink",nil)
 			SetItemButtonTexture(frame.ItemButton,nil)
 			SetItemButtonDesaturated(frame.ItemButton,false)
 			frame.ItemButton.Disabled:Hide()
-			SetItemButtonCount(frame.ItemButton)
+			SetItemCounts(frame.ItemButton)
 			if type(data) =='nil' then
 				frame.Name:SetText(L["Drag here do add an item"])
+				frame.ItemButton.MailCommanderDragTarget=true
 			else
 				frame:Hide()
 				return 1
@@ -234,7 +273,7 @@ local function AddButton(i,data,section)
 		end
 		frame.Name:SetText(data.text)
 		SetItemButtonTexture(frame.ItemButton,"Interface\\ICONS\\ClassIcon_"..data.class)
-		SetItemButtonCount(frame.ItemButton)
+		SetItemCounts(frame.ItemButton)
 		frame:Show()
 		return 1
 	end
@@ -341,6 +380,58 @@ function addon:ApplyMINLEVEL(value)
 	if MailCommanderFrame:IsVisible() then self:UpdateMailCommanderFrame() end
 
 end
+local function dragStart(frame,button)
+	print("DragStart",frame:GetName(),button)
+	local fname=frame:GetName()
+	if fname=="TradeSkillSkillIcon" then
+	--@debug@
+		print(GameTooltipTextLeft1:GetText(),TradeSkillFrame.selectedSkill,GetTradeSkillItemLink(TradeSkillFrame.selectedSkill))
+	--@end-debug@
+		PickupItem(addon:GetItemID(GetTradeSkillItemLink(TradeSkillFrame.selectedSkill)))
+	elseif fname:find("TradeSkillReagent") then
+--@debug@
+		print(GameTooltipTextLeft1:GetText(),TradeSkillFrame.selectedSkill,GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, frame:GetID()))
+--@end-debug@
+		PickupItem(addon:GetItemID(GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, frame:GetID())))
+	else
+		local itemName, ItemLink = GameTooltip:GetItem();
+		--@debug@
+		print(GameTooltipTextLeft1:GetText(),itemName,ItemLink,GetItemInfo(GameTooltipTextLeft1:GetText()))
+		--@end-debug@
+	end
+end
+local function dragStop(frame)
+--@debug@
+	print("DragStop")
+--@end-debug@
+	frame:RegisterForDrag()
+	frame:SetScript("OnDragStart",nil)
+	frame:SetScript("OnDragStop",nil)
+	local dest=GetMouseFocus()
+--@debug@
+	if type(dest)=="table"  and dest.GetName then
+		print("Drag Stoppped on",dest:GetName())
+	end
+--@end-debug@
+	if type(dest)=="table" and dest.MailCommanderDragTarget then
+		return
+	else
+		ClearCursor()
+	end
+
+end
+local function dragManage(tip)
+	print("DragManage",tip)
+	if CursorHasItem() then return end
+	local frame=tip:GetOwner()
+	if not frame:GetScript("OnDragStart") then
+		if mcf:IsShown() and currentTab==INEED then
+			frame:SetScript("OnDragStart",dragStart)
+			frame:SetScript("OnDragStop",dragStop)
+			frame:RegisterForDrag("LeftButton")
+		end
+	end
+end
 function addon:OnInitialized()
 --@debug@
 	local _,version=LibStub("LibInit")
@@ -382,7 +473,7 @@ function addon:OnInitialized()
 		olddb.requests=nil
 		olddb.disable=nil
 	end
-
+	self.namespace=db
 	--DevTools_Dump(db.toons)
 	if icon then
 		icon:Register(me,ldb,self.db.profile.ldb)
@@ -393,36 +484,49 @@ function addon:OnInitialized()
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
 	self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:AddBoolean("ALLSEND",false,format(L["Show all characters in %s tab"],SEND),L["Show all toons regardless if they have items to send or not"])
+--@debug@
+	self:AddBoolean("DRY",false,"Disable mail sending")
+--@end-debug@
+
 	self:ScheduleTimer("InitData",2)
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:RegisterEvent("MAIL_SHOW","CheckTab")
 	self:RegisterEvent("MAIL_CLOSED","CheckTab")
 	self:RegisterEvent("MAIL_SEND_SUCCESS","MailEvent")
 	self:RegisterEvent("MAIL_FAILED","MailEvent")
+	self:RegisterEvent("MAIL_LOCK_SEND_ITEMS","MailEvent")
+	self:RegisterEvent("MAIL_UNLOCK_SEND_ITEMS","MailEvent")
+	self:RegisterEvent("MAIL_SEND_INFO_UPDATE","MailEvent")
+	self:RegisterEvent("MAIL_SEND_COD_CHANGED","MailEvent")
+	self:RegisterEvent("MAIL_SEND_MONEY_CHANGED","MailEvent")
+	self:RegisterEvent("MAIL_LOCK_SEND_ITEMS","MailEvent")
+
 	self:RegisterEvent("BAG_UPDATE_DELAYED",function(...) dirty=true end)
-	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED','TRADE_SKILL_UPDAYE'},5,'TRADE_SKILL_UPDATE')
+	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED','TRADE_SKILL_UPDATE'},5,'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
 	self:HookScript(_G.SendMailFrame,"OnHide","CloseChooser")
 	--@debug@
-	self:RegisterEvent("MAIL_INBOX_UPDATE",print)
+	self:RegisterEvent("MAIL_INBOX_UPDATE","MailEvent")
+	self:RegisterEvent("UPDATE_PENDING_MAIL","MailEvent")
 	self:SecureHookScript(_G.InboxFrame,"OnShow",print)
 	self:HookScript(_G.InboxFrame,"OnHide",print)
 	--@end-debug@
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
 	addon.xdb=db
-	--[[
-	hooksecurefunc(GameTooltip,"SetHyperlink",function (...) print("Hyper",...) end)
-	hooksecurefunc(GameTooltip,"SetItemByID",function (...) print("Itemid",...) end)
-	GameTooltip:HookScript("OnTooltipSetItem", function (...) print("1",...) end)
-	ItemRefTooltip:HookScript("OnTooltipSetItem", function (...) print("2",...) end)
-	ItemRefShoppingTooltip1:HookScript("OnTooltipSetItem", function (...) print("3",...) end)
-	ItemRefShoppingTooltip2:HookScript("OnTooltipSetItem", function (...) print("4",...) end)
-	ShoppingTooltip1:HookScript("OnTooltipSetItem", function (...) print("5",...) end)
-	ShoppingTooltip2:HookScript("OnTooltipSetItem", function (...) print("6",...) end)
-	--]]
+	--@debug@
+	do
+		local OldHook=GameTooltip:GetScript("OnShow")
+		if OldHook then
+			GameTooltip:HookScript("OnShow",function(...) OldHook(...) dragManage(...) end)
+		else
+			GameTooltip:HookScript("OnShow",dragManage)
+		end
+	end
+	--@end-debug
 	return true
 end
+
 function addon:PLAYER_LEVEL_UP(event,level)
 	loadSelf(level)
 	loadDropList()
@@ -437,6 +541,8 @@ function addon:CheckTab(event)
 	else
 		--PanelTemplates_DisableTab(mcf,ISEND)
 		PanelTemplates_SetTab(mcf,INEED)
+		StackSplitFrame:Hide()
+		wipe(tobesent)
 	end
 end
 function addon:OpenConfig(tab)
@@ -475,7 +581,6 @@ function addon:OnLoad(frame)
 	frame.Send:SetText(L["Send All"])
 	frame.Send.tooltip="tooltip"
 	frame:RegisterForDrag("LeftButton")
-	frame.Items[1].ItemButton:RegisterForClicks("LeftButtonUp","RightButtonUp")
 	frame:SetScript("OnDragStart",function(frame) frame:StartMoving() end)
 	frame:SetScript("OnDragStop",function(frame) frame:StopMovingOrSizing() end)
 	ButtonFrameTemplate_HidePortrait(frame)
@@ -560,9 +665,6 @@ function addon:RefreshSendable()
 	end
 end
 function addon:InitializeDropDown(this,level,menulist)
-	--@debug@
-	print("Filling drop down list")
-	--@end-debug@
 	local mcf=MailCommanderFrame
 	local info = UIDropDownMenu_CreateInfo();
 	local current = addon:GetFilter();
@@ -644,8 +746,10 @@ function addon:RenderButtonList(store,page)
 		end
 	end
 	i=i-page*slots
-	while i<=#mcf.Items do
-		i=i+AddButton(i,false,section)
+	if mcf.Items then
+		while i<=#mcf.Items do
+			i=i+AddButton(i,false,section)
+		end
 	end
 	mcf.PageText:SetFormattedText(PAGE_NUMBER,page+1)
 	if page>0 then
@@ -722,34 +826,46 @@ function addon:OnHelpEnter(this)
 	local tip=GameTooltip
 	tip:SetOwner(this,"ANCHOR_BOTTOMRIGHT")
 	if currentTab==INEED then
-		tip:AddLine(L["Mail Commander request configuration"],C:Green())
+		tip:AddLine(L["Mail Commander request configuration"],C:Orange())
 		tip:AddLine(L["Drag items to define what the selected toon NEEDS"],C:Silver())
+		tip:AddLine(L["You can drag items from: merchants,tradeskills and obviously your bags"])
 	elseif currentTab==ISEND then
-		tip:AddLine(L["Mail Commander bulk mail sending"],C:Green())
+		tip:AddLine(L["Mail Commander bulk mail sending"],C:Orange())
 		tip:AddLine(L["From this panel you can send requested items"],C:Silver())
 		tip:AddLine(L["Items that you dont have are not shown"],C:Silver())
 		tip:AddLine(format(L["Use \"%s\" button to send all items at once (max %d items at a time)"],L["Send All"],ATTACHMENTS_MAX_SEND),C:Silver())
 	elseif currentTab==IFILTER then
-		tip:AddLine(L["Mail Commander character selection"],C:Green())
+		tip:AddLine(L["Mail Commander character selection"],C:Orange())
 		tip:AddLine(L["You can selectively disable character"],C:Silver())
 		tip:AddLine(L["Use gui (/mac gui) to change minimum level"],C:Silver())
+	end
+	if currentTab ~= IFILTER then
+		tip:AddLine(L["Item buttons numbers:"],C:Orange())
+		tip:AddDoubleLine(L["Top left corner"],L["Minimum stock you want to keep on "] .. thisToon,C.Silver.r,C.Silver.g,C.Silver.b,C:Yellow())
+		if currentTab==INEED then tip:AddDoubleLine(L["Set it with"],CTRL_KEY_TEXT .. KEY_BUTTON1,C:Yellow()) end
+		tip:AddDoubleLine(L["Top right corner"],L["Maximum amount you want to send to "] .. currentRequester,C.Silver.r,C.Silver.g,C.Silver.b,C:Green())
+		if currentTab==INEED then tip:AddDoubleLine(L["Set it with"],SHIFT_KEY_TEXT .. KEY_BUTTON1,C:Yellow()) end
+		tip:AddDoubleLine(L["Bottom right corner"],L["Sendable amount (after modifications)"],C.Silver.r,C.Silver.g,C.Silver.b,C:White())
+
 	end
 	if thisFaction=="Neutral" then
 		tip:AddLine(L["ATTENTION: Neutral characters cant use mail"],C:Orange())
 	end
 
 	tip:Show()
-
 end
-local function compare(itemInBag,itemRequest)
-	if type(itemRequest)=='table' then
-		for _,d in pairs(itemRequest) do
-			if tonumber(itemInBag)==tonumber(d.i) then return true end
-		end
-	else
-		return tonumber(itemInBag)==tonumber(itemRequest)
+function addon:SetLimit(itemInBag)
+	if not itemInBag then return end
+	local qt=0
+	local keep=db.keep[thisToon][itemInBag] or 0
+	local cap=db.cap[currentReceiver][itemInBag] or 9999
+	local qt=GetItemCount(itemInBag,false)-keep
+	if qt > cap then
+		qt =cap
+	elseif qt<0 then
+		qt=0
 	end
-	return false
+	tobesent[itemInBag]=qt
 end
 local function DeleteStore(popup,toon)
 	local key=_G.DataStore:GetCharacter(toon)
@@ -785,29 +901,112 @@ function addon:OnDeleteClick(this,button)
 		self:Popup(format(L["Do you want to delete\n%s?"],info.text),DeleteToon,function() end,currentRequester)
 	end
 end
-function addon:OnSendClick(this,button)
-	if not self:CanSendMail() then
-		return
+local FillMailSlot
+FillMailSlot=function(bag,slot)
+	local count,locked=select(2,GetContainerItemInfo(bag,slot))
+	if locked or not count then
+		addon:ScheduleTimer(FillMailSlot,0.01,bag,slot)
+	else
+		UseContainerItem(bag,slot)
 	end
-	local sent=1
-	for i=1,ATTACHMENTS_MAX_SEND do
-		if GetSendMailItem(i) then sent=i end
-	end
+end
+-- Da riscrivere
+local sortable={}
+function addon:SearchItem(itemId)
+	if IsDisabled(itemId) then return false end
+	wipe(sortable)
 	for bagId=0,NUM_BAG_SLOTS do
 		for slotId=1,GetContainerNumSlots(bagId) do
-			local itemId=GetContainerItemID(bagId,slotId)
-			if not IsDisabled(itemId) and compare(itemId,db.requests[currentReceiver]) then
-				SendMailNameEditBox:SetText(currentReceiver)
-				UseContainerItem(bagId,slotId)
-				sent=sent+1
-				if sent > ATTACHMENTS_MAX_SEND then
-					bagId=999
-					break
-				end
+			local itemInBag=GetContainerItemID(bagId,slotId)
+			if itemInBag and itemInBag==itemId then
+				tinsert(sortable,format("%05d:%s:%s",10000-select(2,GetContainerItemInfo(bagId,slotId)),bagId,slotId))
 			end
 		end
 	end
-	sent=0
+	if #sortable>0 then
+		table.sort(sortable)
+		for i=1,#sortable do
+			local qt,bagId,slotId=strsplit(":",sortable[i])
+			qt=10000-tonumber(qt)
+			if qt==tobesent[itemId] then
+				self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+				return
+			end
+		end
+		for i=1,#sortable do
+			local qt,bagId,slotId=strsplit(":",sortable[i])
+			qt=10000-tonumber(qt)
+			if qt>tobesent[itemId] then
+				self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+				return
+			end
+		end
+		for i=1,#sortable do
+			local qt,bagId,slotId=strsplit(":",sortable[i])
+			self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),10000-tonumber(qt))
+		end
+	end
+end
+function addon:Close(this)
+	StackSplitFrame:Hide()
+	CloseAllBags(this)
+	wipe(sending)
+	wipe(tobesent)
+
+end
+function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
+	local needsplit
+--@debug@
+	print("From",bagId,slotId)
+	print(itemId,tobesent[itemId],sending[itemId])
+--@end-debug@
+	local limit=tobesent[itemId]-sending[itemId]
+	if limit==0 then return end
+	if qt > limit then
+		qt=limit
+		needsplit=true
+	else
+		needsplit=false
+	end
+--@debug@
+	local name=GetItemInfo(itemId)
+	print('Sending',name,'(',itemId,')','x',qt)
+--@end-debug@
+	if needsplit then
+		--@debug@
+		print("Splitting attempt")
+		--@end-debug@
+		local freebag,freeslot=self:ScanBags(0,0)
+		--@debug@
+		print("Empty slot in ",freebag,freeslot)
+		--@end-debug@
+		if freebag and freeslot then
+		--@debug@
+			print("Split",bagId,slotId,qt)
+		--@end-debug@
+			SplitContainerItem(bagId,slotId,qt)
+		--@debug@
+			print("Pickup",freebag,freeslot)
+		--@end-debug@
+			PickupContainerItem(freebag,freeslot)
+		--@debug@
+			print("Using",freebag,freeslot,GetTime())
+		--@end-debug@
+			FillMailSlot(freebag,freeslot)
+		else
+			self:Print(L["Need at least one free slot in bags in order to send less than a full stack"])
+			return
+		end
+	else
+		UseContainerItem(bagId,slotId)
+	end
+end
+function addon:FireMail(this)
+	if self:GetBoolean('DRY') then return end
+	if this then
+		this:Disable()
+	end
+	local sent=0
 	local body=""
 	local header=L["Mail Commander Bulk Mail"]
 	for i=1,ATTACHMENTS_MAX_SEND do
@@ -820,19 +1019,49 @@ function addon:OnSendClick(this,button)
 		end
 	end
 	if sent > 0 then
-		this:Disable()
-		SendMail(currentReceiver,header,body)
-		self:UpdateMailCommanderFrame()
+		SendMailNameEditBox:SetText(currentReceiver)
+		if this then
+			SendMail(currentReceiver,header,body)
+			self:UpdateMailCommanderFrame()
+		end
+	end
+	if this then
 		this:Enable()
 	end
 end
-function addon:MailEvent(event)
+function addon:OnSendClick(this,button)
+	if not self:CanSendMail() then
+		return
+	end
+	local sent=1
+	for i=1,ATTACHMENTS_MAX_SEND do
+		if GetSendMailItem(i) then sent=i end
+	end
+	for _,data in pairs(db.requests[currentReceiver]) do
+		self:SearchItem(data.i)
+	end
+	self:ScheduleTimer("FireMail",0.05,this)
+end
+function addon:MailEvent(event,...)
 	--@debug@
-	print("Mail event ",event)
+	print("Mail event ",event,...)
 	--@end-debug@
-	mcf.Send:Enable()
-	self:RefreshSendable()
-	self:ScheduleTimer("UpdateMailCommanderFrame",0.5)
+	if event=="MAIL_SEND_SUCCESS" then
+		mcf.Send:Enable()
+		self:RefreshSendable()
+		self:ScheduleTimer("UpdateMailCommanderFrame",0.01)
+	elseif event=="MAIL_SEND_INFO_UPDATE" then
+		wipe(sending)
+		for i=1,ATTACHMENTS_MAX_SEND do
+			local name,texture,count=GetSendMailItem(i)
+			if name then
+				local id=self:GetItemID(GetSendMailItemLink(i))
+				sending[id]=sending[id]+count
+			end
+		end
+		self:RefreshSendable()
+		self:ScheduleTimer("UpdateMailCommanderFrame",0.01)
+	end
 end
 function addon:CanSendMail()
 	if not SendMailFrame:IsVisible() then
@@ -868,31 +1097,67 @@ function addon:ClickedOnToon(itemButton,button)
 	end
 
 end
+function addon:OnResetClick(this)
+	StackSplitFrame:Hide()
+	this.SplitStack(this,0)
+end
+
+local function AddCap(this,qt)
+	local itemId=addon:GetItemID(this:GetAttribute("itemlink"))
+	if qt==0 then qt=nil end
+	db.cap[currentRequester][itemId]=qt
+	addon:UpdateMailCommanderFrame()
+end
+local function AddKeep(this,qt)
+	local itemId=addon:GetItemID(this:GetAttribute("itemlink"))
+	db.keep[thisToon][itemId]=qt
+	addon:UpdateMailCommanderFrame()
+end
 function addon:ClickedOnItem(itemButton,button)
+	local shift,ctrl=IsShiftKeyDown(),IsControlKeyDown()
 	local itemId=self:GetItemID(itemButton:GetAttribute("itemlink"))
 	if not itemId or itemId==0 then
 		if currentTab==INEED then
 			--@debug@
 			local type,itemID,itemLink=GetCursorInfo()
 			print("click",type,itemID,itemLink)
-			self:OnItemDropped(itemButton)
---@end-debug@
+			--@end-debug@
+			if itemID then
+				self:OnItemDropped(itemButton)
+			end
 		end
 		return
 	end
 	--@debug@
-	print ("Click",itemId)
-	if IsShiftKeyDown() then
-		itemButton.SplitStack=function(this,qt)
-			SetItemButtonCount(this,qt)
-			local itemId=self:GetItemID(this:GetAttribute("itemlink"))
-			db.cap[currentRequester][itemId]=qt
-		end
-		OpenStackSplitFrame(1000,itemButton,"CENTER","CENTER")
+	print ("Click",itemId,currentTab)
+	--@end-debug@
+	if shift then
+		itemButton.SplitStack=AddCap
+		StackSplitText:SetText(StackSplitFrame.split);
+		OpenStackSplitFrame(1000,itemButton,"RIGHT","LEFT")
+		StackSplitFrame.split = db.cap[currentRequester][itemId] or 0
+		StackSplitText:SetText(StackSplitFrame.split);
+		StackSplitText:SetTextColor(C:Green())
+		if StackSplitFrame.split > 0 then StackSplitLeftButton:Enable() end
+		MailCommanderSplitLabel.Text:SetTextColor(C:Green())
+		MailCommanderSplitLabel.Text:SetText(L["Maximum sending"])
+		MailCommanderSplitLabel:Show()
 		return
 	end
-	--@end-debug@
+	if ctrl then
+		itemButton.SplitStack=AddKeep
+		OpenStackSplitFrame(1000,itemButton,"RIGHT","LEFT")
+		StackSplitFrame.split = db.keep[thisToon][itemId]
+		StackSplitText:SetText(StackSplitFrame.split);
+		StackSplitText:SetTextColor(C:Yellow())
+		if StackSplitFrame.split > 0 then StackSplitLeftButton:Enable() end
+		MailCommanderSplitLabel.Text:SetTextColor(C:Yellow())
+		MailCommanderSplitLabel.Text:SetText(L["Minimum Storage"])
+		MailCommanderSplitLabel:Show()
+		return
+	end
 	if currentTab==ISEND then
+		if IsShiftKeyDown() or IsControlKeyDown() then return end
 		if (button=="LeftButton") then
 			db.disabled[itemId][thisToon][currentReceiver]=not db.disabled[itemId][thisToon][currentReceiver]
 			if IsDisabled(itemId) then
@@ -905,21 +1170,10 @@ function addon:ClickedOnItem(itemButton,button)
 			if not self:CanSendMail() then
 				return
 			end
-			for bagId=0,NUM_BAG_SLOTS do
-				for slotId=1,GetContainerNumSlots(bagId) do
-					if compare(GetContainerItemID(bagId,slotId),itemId) then
-						MailFrameTab_OnClick(MailFrame,2)
-						SendMailNameEditBox:SetText(currentReceiver)
-						UseContainerItem(bagId,slotId)
-						bagId=999
-						break
-					end
-				end
-			end
-			--PickupContainerItem(1,4)
-			--ClickSendMailItemButton(1)
+			self:SearchItem(itemId)
+			self:ScheduleTimer("FireMail",0.05)
 		end
-	else
+	elseif currentTab==INEED then
 		if button=="LeftButton" then
 			if (itemId and currentRequester) then
 				db.disabled[itemId]['ALL'][currentRequester]=not db.disabled[itemId]['ALL'][currentRequester]
@@ -946,8 +1200,13 @@ function addon:ClickedOnItem(itemButton,button)
 	end
 	self:UpdateMailCommanderFrame()
 end
+function addon:OnResetEnter(itemButton,motion)
+	GameTooltip:SetOwner(itemButton,"ANCHOR_RIGHT")
+	GameTooltip:AddLine(RESET .. " " .. itemButton.Text:GetText())
+	GameTooltip:Show()
+end
 function addon:OnItemEnter(itemButton,motion)
-	GameTooltip:SetOwner(itemButton,"ANCHOR_CURSOR")
+	GameTooltip:SetOwner(itemButton,"ANCHOR_RIGHT")
 	if itemButton:GetAttribute("section")=="items" then
 		local itemlink=itemButton:GetAttribute('itemlink')
 		if itemlink then
@@ -969,7 +1228,11 @@ function addon:OnItemEnter(itemButton,motion)
 				if disabled then GameTooltip:AddLine(format(L["Disabled items are not sent with \"%s\" button"],L["Send All"]),C:Orange()) end
 				GameTooltip:AddDoubleLine(KEY_BUTTON2,L["Add to sendmail panel"],color1.r,color1.g,color1.b,GREEN_FONT_COLOR.r,GREEN_FONT_COLOR.g,GREEN_FONT_COLOR.b)
 			end
+			GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set minimum amount to keep on "] ..  thisToon,color1.r,color1.g,color1.b,C:Yellow())
+			GameTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set maximum sendable amount for "] .. (currentTab==INEED and currentRequester or currentReceiver),color1.r,color1.g,color1.b,C:Green())
+--@debug@
 			GameTooltip:AddDoubleLine("Id:",itemId)
+--@end-debug@
 		else
 			GameTooltip:SetText(L["Dragging an item here will add it to the list"])
 		end
@@ -1006,9 +1269,6 @@ function addon:OnTabClick(tab)
 	self:UpdateMailCommanderFrame()
 end
 function addon:UpdateMailCommanderFrame()
---@debug@
-	print("UpdateMailCommanderFrame",mcf.selectedTab,mcf:IsVisible())
---@end-debug@
 	if mcf.selectedTab==INEED then
 		addon:RenderNeedBox(mcf)
 	elseif mcf.selectedTab==ISEND then
@@ -1021,9 +1281,6 @@ function addon:UpdateMailCommanderFrame()
 --@end-debug@
 		return
 	end
---@debug@
-	print("Calling InitializeDropDown")
---@end-debug@
 	self:InitializeDropDown(mcf.filter)
 
 end
@@ -1111,6 +1368,7 @@ _G.MailCommander=addon
 _G.MAC=addon
 _G.MAC.sendable=sendable
 _G.MAC.toonTable=toonTable
+
 --@end-debug@
 
 -- Key Bindings Names

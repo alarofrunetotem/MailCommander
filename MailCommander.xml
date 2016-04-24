@@ -4,6 +4,9 @@
 	<Font name="NumberFontNormalGreen" inherits="NumberFontNormal" virtual="true" >
 		<Color r="0.0" g="1.0" b="0"/>
 	</Font>
+	<Font name="GameFontYellowSmall" inherits="GameFontGreenSmall" virtual="true" >
+		<Color r="1.0" g="0.8" b="0"/>
+	</Font>
 	<Button name="MailCommanderItemButtonTemplate" virtual="true">
 		<!-- <CheckedTexture alphaMode="ADD" file="Interface\Buttons\CheckButtonHilight"/> -->
 		<!--<HighlightTexture file="Interface\PaperDollInfoFrame\UI-GearManager-LeaveItem-Transparent"/>-->
@@ -25,27 +28,20 @@
 			<Layer level="ARTWORK" textureSubLevel="2">
 				<FontString inherits="NumberFontNormal" justifyH="RIGHT" hidden="true" parentKey="Stock">
 					<Anchors>
-						<Anchor point="BOTTOMRIGHT">
-							<Offset>
-								<AbsDimension x="0" y="2"/>
-							</Offset>
-						</Anchor>
-					</Anchors>
-				</FontString>
-				<FontString inherits="NumberFontNormalYellow" justifyH="LEFT" hidden="true" parentKey="Keep">
-					<Anchors>
-						<Anchor point="TOPLEFT">
-							<Offset>
-								<AbsDimension x="0" y="-2"/>
-							</Offset>
-						</Anchor>
-					</Anchors>
-				</FontString>
-				<FontString inherits="NumberFontNormalGreen" justifyH="RIGHT" hidden="true" parentKey="Cap">
-					<Anchors>
 						<Anchor point="TOPRIGHT">
 							<Offset>
 								<AbsDimension x="0" y="-2"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+			</Layer>
+			<Layer level="ARTWORK" textureSubLevel="2">
+				<FontString inherits="NumberFontNormal" justifyH="RIGHT" hidden="true" parentKey="ModifiedStock">
+					<Anchors>
+						<Anchor point="BOTTOMRIGHT">
+							<Offset>
+								<AbsDimension x="-2" y="2"/>
 							</Offset>
 						</Anchor>
 					</Anchors>
@@ -67,7 +63,7 @@
 		<PushedTexture file="Interface\Buttons\UI-Quickslot-Depress"/>
 		<HighlightTexture file="Interface\Buttons\ButtonHilight-Square" alphaMode="ADD"/>
 	</Button>
-	<Frame name="MailCommanderItemTemplate" virtual="true">
+	<Frame name="MailCommanderItemTemplate" enableMouse="true" virtual="true">
 		<Size x="153" y="64"/>
 		<Layers>
 			<Layer level="BACKGROUND">
@@ -86,7 +82,17 @@
 				<FontString parentKey="Name" inherits="GameFontNormalSmall" text="Item Name" justifyH="LEFT">
 					<Size x="100" y="30"/>
 					<Anchors>
-						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-5" y="7"/>
+						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-5" y="10"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Keep" inherits="GameFontYellowSmall" justifyH="LEFT" hidden="true">
+					<Anchors>
+						<Anchor point="LEFT"  x="42" y="3" />
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Cap" inherits="GameFontGreenSmall" justifyH="RIGHT" hidden="true">
+					<Anchors>
+						<Anchor point="RIGHT"  x="-4" y="3" />
 					</Anchors>
 				</FontString>
 			</Layer>
@@ -116,17 +122,6 @@
 				</Scripts>
 			</Button>
 		</Frames>
-		<Scripts>
-			<OnEnter >
-				MailCommander:OnItemEnter(self,button)
-			</OnEnter>
-			<OnLeave>
-				MailCommander:CloseTip()
-			</OnLeave>
-			<OnLoad>
-				print("Loaded itembutton with name",self:GetName())
-			</OnLoad>
-		</Scripts>
 	</Frame>
 	<Frame name="MailCommander" virtual="true" toplevel="true" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="PortraitFrameTemplate"><!-- inherits="ButtonFrameTemplate">-->
 		<Size x="336" y="444"/>

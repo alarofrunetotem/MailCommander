@@ -15,7 +15,7 @@ local addon --#MailCommander
 local LibInit,minor=LibStub("LibInit",true)
 assert(LibInit,me .. ": Missing LibInit, please reinstall")
 if minor >=21 then
-	addon=LibStub("LibInit"):NewAddon(ns,me,{noswitch=true,profile=true},"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
+	addon=LibStub("LibInit"):NewAddon(ns,me,{noswitch=false,profile=true,enhancedProfile=true},"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
 else
 	addon=LibStub("LibInit"):NewAddon(me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
 end
@@ -554,7 +554,7 @@ function addon:OnInitialized()
 		end
 	end
 	--@end-debug@
-	return true
+	return --true
 end
 function addon:PLAYER_LOGOUT(event)
 	checkBags()
@@ -941,8 +941,8 @@ function addon:OnDeleteClick(this,button)
 		self:Popup(format(L["Do you want to delete\n%s?"],info.text),DeleteToon,function() end,currentRequester)
 	end
 end
-local FillMailSlot
-FillMailSlot=function(bag,slot)
+
+local function FillMailSlot(bag,slot)
 	local count,locked=select(2,GetContainerItemInfo(bag,slot))
 	if locked or not count then
 		addon:ScheduleTimer(FillMailSlot,0.01,bag,slot)
@@ -1051,7 +1051,9 @@ function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
 	end
 end
 function addon:FireMail(this)
-	if self:GetBoolean('DRY') then return end
+--@debug@
+	print("Firemail",this)
+--@end-debug@
 	if this then
 		this:Disable()
 	end
@@ -1073,8 +1075,10 @@ function addon:FireMail(this)
 	if sent > 0 then
 		SendMailNameEditBox:SetText(currentReceiver)
 		if this then
-			SendMail(currentReceiver,header,body)
-			self:UpdateMailCommanderFrame()
+			if not self:GetBoolean('DRY') then
+				SendMail(currentReceiver,header,body)
+				self:UpdateMailCommanderFrame()
+			end
 		end
 	end
 	if this then
@@ -1091,7 +1095,7 @@ function addon:OnSendClick(this,button)
 		if GetSendMailItem(i) then sent=i end
 	end
 	self:Mail()
-	self:ScheduleTimer("FireMail",0.05,this)
+	self:ScheduleTimer("FireMail",1,this)
 end
 function addon:MailEvent(event,...)
 	--@debug@

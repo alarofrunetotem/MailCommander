@@ -355,19 +355,19 @@
 	</Frame>
 	<Frame name="MailCommanderSplitLabel" frameStrata="HIGH" parent="StackSplitFrame" toplevel="true" hidden="true" clampedToScreen="true">
 		<Size>
-			<AbsDimension x="172" y="64"/>
+			<AbsDimension x="172" y="80"/>
 		</Size>
 		<Layers>
 			<Layer level="BACKGROUND">
 				<Texture file="Interface\MoneyFrame\UI-MoneyFrame2">
 					<Size>
-						<AbsDimension x="256" y="64"/>
+						<AbsDimension x="256" y="80"/>
 					</Size>
 					<TexCoords left="0" right="0.671875" top="0.10" bottom="0.75"/>
 				</Texture>
 				<FontString parentKey="Text" inherits="GameFontHighlight" justifyH="CENTER" text="Prova">
 					<Anchors>
-						<Anchor point="BOTTOM" x="0" y="15"/>
+						<Anchor point="BOTTOM" x="0" y="20"/>
 					</Anchors>
 				</FontString>
 			</Layer>

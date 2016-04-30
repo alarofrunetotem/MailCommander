@@ -878,11 +878,6 @@ function addon:OnHelpEnter(this)
 	end
 	if currentTab ~= IFILTER then
 		tip:AddLine(L["Item buttons:"],C:Orange())
-		--tip:AddDoubleLine(L["Top left corner"],L["Minimum stock you want to keep on "] .. thisToon,C.Silver.r,C.Silver.g,C.Silver.b,C:Yellow())
-		--if currentTab==INEED then tip:AddDoubleLine(L["Set it with"],CTRL_KEY_TEXT .. KEY_BUTTON1,C:Yellow()) end
-		--tip:AddDoubleLine(L["Top right corner"],L["Maximum amount you want to send to "] .. currentRequester,C.Silver.r,C.Silver.g,C.Silver.b,C:Green())
-		--if currentTab==INEED then tip:AddDoubleLine(L["Set it with"],SHIFT_KEY_TEXT .. KEY_BUTTON1,C:Yellow()) end
-		--tip:AddDoubleLine(L["Bottom right corner"],L["Sendable amount (after modifications)"],C.Silver.r,C.Silver.g,C.Silver.b,C:White())
 		tip:AddLine(HELP_ICON)
 
 	end

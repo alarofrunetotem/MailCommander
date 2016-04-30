@@ -304,7 +304,9 @@
 					<OnEnter>
 						MailCommander:OnSendEnter(self)
 					</OnEnter>
-					<OnLeave function="GameTooltip_Hide"/>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
 				</Scripts>
 			</Button>
 			<CheckButton name="$parentAll" parentKey="All" inherits="ChatConfigSmallCheckButtonTemplate" text="ALL" hidden="true">

@@ -1202,33 +1202,28 @@ function addon:RefreshItemlinks(...)
 	end
 end
 
-local function AddCap(this,qt)
-	local itemId=addon:GetItemID(this:GetAttribute("itemlink"))
-	if qt==0 then qt=nil end
-	local toon=this.toon
-	db.cap[toon][itemId]=qt
-	addon:SetLimit(itemId)
-	addon:UpdateMailCommanderFrame()
-end
-local function AddKeep(this,qt)
+local function SplitFunc(this,qt)
 	local itemId=addon:GetItemID(this:GetAttribute("itemlink"))
 	local toon=this.toon
-	db.keep[toon][itemId]=qt
+	local key=this.key
+	if key=="cap" and qt==0 then qt=nil end
+	db[key][toon][itemId]=qt
 	addon:SetLimit(itemId)
 	addon:UpdateMailCommanderFrame()
 end
 
-local function ShowSplitter(func,toon,itemButton,itemId,msg,r,g,b)
-		itemButton.SplitStack=AddCap
+local function ShowSplitter(data,toon,itemButton,itemId,msg,r,g,b)
+		itemButton.SplitStack=SplitFunc
 		itemButton.toon=toon
+		itemButton.key=data
 		StackSplitText:SetText(StackSplitFrame.split);
-		OpenStackSplitFrame(99999,itemButton,"RIGHT","LEFT")
-		StackSplitFrame.split = db.cap[toon][itemId] or 0
+		OpenStackSplitFrame(9999,itemButton,"RIGHT","LEFT")
+		StackSplitFrame.split = db[data][toon][itemId] or 0
 		StackSplitText:SetText(StackSplitFrame.split);
 		StackSplitText:SetTextColor(r,g,b)
 		if StackSplitFrame.split > 0 then StackSplitLeftButton:Enable() end
 		MailCommanderSplitLabel.Text:SetTextColor(r,g,b)
-		MailCommanderSplitLabel.Text:SetText(msg)
+		MailCommanderSplitLabel.Text:SetText(toon .. "\n" .. msg)
 		MailCommanderSplitLabel:Show()
 		return
 end
@@ -1261,13 +1256,13 @@ function addon:ClickedOnItem(itemButton,button)
 		return
 	end
 	if shift and ctrl then
-		ShowSplitter(AddKeep,thisToon,itemButton,itemId,L["Reserved"],C:Blue())
+		return ShowSplitter('keep',thisToon,itemButton,itemId,L["Reserved"],C:Cyan())
 	end
 	if shift then
-		ShowSplitter(AddCap,toon,itemButton,itemId,L["Maximum Storage"],C:Green())
+		return ShowSplitter('cap',toon,itemButton,itemId,L["Maximum Storage"],C:Green())
 	end
 	if ctrl then
-		ShowSplitter(AddKeep,toon,itemButton,itemId,L["Minimum Storage"],C:Yellow())
+		return ShowSplitter('keep',toon,itemButton,itemId,L["Minimum Storage"],C:Yellow())
 	end
 	if currentTab==ISEND then
 		if (button=="LeftButton") then
@@ -1359,9 +1354,9 @@ function addon:OnItemEnter(itemButton,motion)
 			GameTooltip:AddDoubleLine("Stock:",db.stock[toon][itemId])
 			local qt=GetItemCount(itemId)-bags[itemId]
 			GameTooltip:AddLine("Availability on " .. C(thisToon,'Green'),C:Orange())
-			GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1,L["Set reserved"] ,color1.r,color1.g,color1.b,C:Blue())
+			GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1,L["Set reserved"] ,color1.r,color1.g,color1.b,C:Cyan())
 			GameTooltip:AddDoubleLine("Total:",qt,nil,nil,nil,C:Silver())
-			GameTooltip:AddDoubleLine("Reserved:",db.keep[thisToon][itemId],nil,nil,nil,C:Silver())
+			GameTooltip:AddDoubleLine("Reserved:",db.keep[thisToon][itemId],nil,nil,nil,C:Cyan())
 			GameTooltip:AddDoubleLine("Sendable:",math.max(0,qt-db.keep[thisToon][itemId]),nil,nil,nil,C:Green())
 
 --@debug@

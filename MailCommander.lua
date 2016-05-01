@@ -123,6 +123,8 @@ local toonIndex={}
 local tobesent={}
 local sending=setmetatable({},{__index=function() return 0 end})
 local bags=setmetatable({},{__index=function() return 0 end})
+local KCAP=999
+local STARCAP=9999
 local function checkBags()
 	wipe(bags)
 	for i=1,4 do
@@ -190,17 +192,28 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 			button.ModifiedStock:Hide()
 			return
 		end
-		if not cap or cap == 0 then cap ='n/a' end
-		frame.Cap:SetFormattedText(L["Cap: %s"],cap)
+		if not cap or cap == 0 then
+			cap ='n/a'
+		else
+			if cap > KCAP then
+				cap=math.floor(cap/1000) ..'K'
+			end
+		end
+		if keep and keep >KCAP then
+			keep=math.floor(keep/1000) ..'K'
+		else
+			keep=0
+		end
+		frame.Cap:SetFormattedText("Cap:%s",cap)
 		frame.Cap:Show()
 		if not keep then keep=0 end
 		--frame.Keep:SetFormattedText(MERCHANT_STOCK, keep)
-		frame.Keep:SetFormattedText(L["Keep: %s"],keep)
+		frame.Keep:SetFormattedText("Keep:%s",keep)
 		frame.Keep:Show()
 		if stock and stock > -1 then
 			total = total or stock
-			button.ModifiedStock:SetText(stock>9999 and '*' or stock)
-			button.Stock:SetFormattedText(MERCHANT_STOCK,total>9999 and '*' or total)
+			button.ModifiedStock:SetText(stock>STARCAP and '*' or stock)
+			button.Stock:SetFormattedText(MERCHANT_STOCK,total>STARCAP and '*' or total)
 			button.Stock:Show()
 			button.ModifiedStock:Show()
 		else
@@ -879,6 +892,10 @@ function addon:OnHelpEnter(this)
 	if currentTab ~= IFILTER then
 		tip:AddLine(L["Item buttons:"],C:Orange())
 		tip:AddLine(HELP_ICON)
+		tip:AddLine(L["Definitions"])
+		tip:AddDoubleLine("Keep",L["Minimun storage for the selected toon"],C:Yellow())
+		tip:AddDoubleLine("Cap",L["Maximum storage for the selected toon"],C:Green())
+		tip:AddDoubleLine("Reserved",format(L['Like "%s" but for the logged in toon'],"Keep"),C:Cyan())
 
 	end
 	if thisFaction=="Neutral" then
@@ -1212,7 +1229,7 @@ local function ShowSplitter(data,toon,itemButton,itemId,msg,r,g,b)
 		itemButton.toon=toon
 		itemButton.key=data
 		StackSplitText:SetText(StackSplitFrame.split);
-		OpenStackSplitFrame(9999,itemButton,"RIGHT","LEFT")
+		OpenStackSplitFrame(99999,itemButton,"RIGHT","LEFT")
 		StackSplitFrame.split = db[data][toon][itemId] or 0
 		StackSplitText:SetText(StackSplitFrame.split);
 		StackSplitText:SetTextColor(r,g,b)
@@ -1344,15 +1361,15 @@ function addon:OnItemEnter(itemButton,motion)
 			GameTooltip:AddLine("Settings for " .. toon,C:Orange())
 			GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set min storage"]..' (Keep)' ,color1.r,color1.g,color1.b,C:Yellow())
 			GameTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set max storage"]..' (Cap)' ,color1.r,color1.g,color1.b,C:Green())
-			GameTooltip:AddDoubleLine("Current Keep:",db.keep[toon][itemId],C.White.r,C.White.g,C.White.b,C:Yellow())
-			GameTooltip:AddDoubleLine("Current Cap:",db.cap[toon][itemId],C.White.r,C.White.g,C.White.b,C:Green())
+			GameTooltip:AddDoubleLine("Keep:",db.keep[toon][itemId],C.White.r,C.White.g,C.White.b,C:Yellow())
+			GameTooltip:AddDoubleLine("Cap:",db.cap[toon][itemId] and db.cap[toon][itemId] or 'N/A',C.White.r,C.White.g,C.White.b,C:Green())
 			GameTooltip:AddDoubleLine("Stock:",db.stock[toon][itemId])
 			local qt=GetItemCount(itemId)-bags[itemId]
 			GameTooltip:AddLine("Availability on " .. C(thisToon,'Green'),C:Orange())
 			GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1,L["Set reserved"] ,color1.r,color1.g,color1.b,C:Cyan())
 			GameTooltip:AddDoubleLine("Total:",qt,nil,nil,nil,C:Silver())
 			GameTooltip:AddDoubleLine("Reserved:",db.keep[thisToon][itemId],nil,nil,nil,C:Cyan())
-			GameTooltip:AddDoubleLine("Sendable:",math.max(0,qt-db.keep[thisToon][itemId]),nil,nil,nil,C:Green())
+			GameTooltip:AddDoubleLine("Sendable:",math.max(0,qt-db.keep[thisToon][itemId]),nil,nil,nil,C:White())
 
 --@debug@
 			GameTooltip:AddDoubleLine("Id:",itemId)

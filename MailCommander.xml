@@ -66,6 +66,14 @@
 	<Frame name="MailCommanderItemTemplate" enableMouse="true" virtual="true">
 		<Size x="153" y="64"/>
 		<Layers>
+			<Layer level="BACKGROUND"  textureSubLevel="-6">
+				<Texture name="$parentBg" file="Interface\MailFrame\UI-MailFrameBG" horizTile="true" vertTile="true" parentKey="Bg">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="1" y="0"/>
+						<Anchor point="BOTTOMRIGHT" x="-3" y="25"/>
+					</Anchors>
+				</Texture>
+			</Layer>
 			<Layer level="BACKGROUND">
 				<Texture parentKey="SlotTexture" file="Interface\Buttons\UI-EmptySlot">
 					<Size x="64" y="64"/>
@@ -79,10 +87,10 @@
 						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-9" y="-10"/>
 					</Anchors>
 				</Texture>
-				<FontString parentKey="Name" inherits="GameFontNormalSmall" text="Item Name" justifyH="LEFT">
+				<FontString parentKey="Name" inherits="GameFontNormalSmall" text="Item Name" justifyH="LEFT" justifyV="TOP">
 					<Size x="100" y="30"/>
 					<Anchors>
-						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-5" y="10"/>
+						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-5" y="5"/>
 					</Anchors>
 				</FontString>
 				<FontString parentKey="Keep" inherits="GameFontYellowSmall" justifyH="LEFT" hidden="true">
@@ -115,9 +123,20 @@
 					<OnReceiveDrag>
 						MailCommander:OnItemDropped(self)
 					</OnReceiveDrag>
+					<OnDragStart>
+						PickupItem(MailCommander:GetItemID(self:GetAttribute("itemlink")))
+					</OnDragStart>
+					<OnDragStop>
+						local dest=GetMouseFocus()
+						if type(dest)=="table" and dest.MailCommanderDragTarget then
+							return
+						else
+							ClearCursor()
+						end
+					</OnDragStop>
 					<OnLoad>
 						self:RegisterForClicks("LeftButtonUp","RightButtonUp")
-
+						self:RegisterForDrag("LeftButton")
 					</OnLoad>
 				</Scripts>
 			</Button>
@@ -168,6 +187,19 @@
 					</OnLoad>
 				</Scripts>
 			</Button>
+			<Frame parentArray="Additional" name="$parentAdditional" inherits="MailCommanderItemTemplate">
+				<KeyValues>
+					<KeyValue key="section" value="Drop" type="string"/>
+				</KeyValues>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeKey="$parent.Help" relativePoint="BOTTOMLEFT" x="3" y="-2"/>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						self.ItemButton:SetAttribute('section',"drop")
+					</OnLoad>
+				</Scripts>
+			</Frame>
 			<Frame parentArray="Items" inherits="MailCommanderItemTemplate">
 				<Anchors>
 					<Anchor point="TOPLEFT" x="10" y="-60"/>
@@ -284,6 +316,24 @@
 					</OnClick>
 					<OnLoad>
 						self.tooltip=_G.FILTER
+					</OnLoad>
+				</Scripts>
+			</Button>
+			<Button parentKey="tabCATEGORIES" name="$parentTab4" inherits="CharacterFrameTabButtonTemplate" id="4" text="CATEGORIES">
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parentTab3" relativePoint="RIGHT" x="-16" y="0"/>
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText(self.tooltip, 0,1.0,0 );
+					</OnEnter>
+					<OnLeave function="GameTooltip_Hide"/>
+					<OnClick>
+						MailCommander:OnTabClick(self,button)
+					</OnClick>
+					<OnLoad>
+						self.tooltip=_G.CATEGORIES
 					</OnLoad>
 				</Scripts>
 			</Button>

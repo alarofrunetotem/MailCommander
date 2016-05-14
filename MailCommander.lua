@@ -23,6 +23,8 @@ local C=addon:GetColorTable()
 local L=addon:GetLocale()
 local I=LibStub("LibItemUpgradeInfo-1.0")
 local GetItemInfo=I:GetCachingGetItemInfo()
+local math=math
+local db
 local fakeLdb={
 	type = "data source",
 	label = me,
@@ -67,46 +69,21 @@ local dbDefaults={
 				['*'] = 0
 			}
 		},
+		categories={
+		},
 		ignored={},
 		lastReceiver='NONE'
 	}
 }
-local LDB=LibStub:GetLibrary("LibDataBroker-1.1",true)
-local ldb= LDB:NewDataObject(me,fakeLdb) --#ldb
-local icon = LibStub("LibDBIcon-1.0",true)
-
--- upvalues
-local SetItemButtonTexture,UIDropDownMenu_AddButton=SetItemButtonTexture,UIDropDownMenu_AddButton
-local GetProfessions,GetUnitName,UnitClass,GetProfessionInfo,UnitLevel=GetProfessions,GetUnitName,UnitClass,GetProfessionInfo,UnitLevel
-local ClearCursor,CreateFrame,print,GetCursorInfo=ClearCursor,CreateFrame,print,GetCursorInfo
-local ButtonFrameTemplate_HidePortrait,SendMailFrame,UIParent,InboxFrame=ButtonFrameTemplate_HidePortrait,SendMailFrame,UIParent,InboxFrame
-local	UIDropDownMenu_CreateInfo,UIDropDownMenu_SetWidth=UIDropDownMenu_CreateInfo,UIDropDownMenu_SetWidth
-local UIDropDownMenu_Initialize,UIDropDownMenu_SetText=UIDropDownMenu_Initialize,UIDropDownMenu_SetText
-local PanelTemplates_SetNumTabs,PanelTemplates_SetTab=PanelTemplates_SetNumTabs,PanelTemplates_SetTab
-local SetItemButtonDesaturated,SetItemButtonCount,SetItemButtonStock=SetItemButtonDesaturated,SetItemButtonCount,SetItemButtonStock
-local GetItemCount=GetItemCount
-local MailFrame=MailFrame
-local wipe,tinsert,pairs,ipairs,strcmputf8i=wipe,tinsert,pairs,ipairs,strcmputf8i
-local PanelTemplates_DisableTab,PanelTemplates_EnableTab=PanelTemplates_DisableTab,PanelTemplates_EnableTab
-local minibag="Interface\\PaperDollInfoFrame\\UI-GearManager-ItemIntoBag"
-local undo="Interface\\PaperDollInfoFrame\\UI-GearManager-Undo"
-local ignore="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Opaque"
-local ignore2="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent"
-local KEY_BUTTON1 = "\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:228:283\124t" -- left mouse button
-local KEY_BUTTON2 = "\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:330:385\124t" -- right mouse button
---local HELP_ICON = "\124TInterface\AddOns\MailCommander\helpItems.tga:256:64\124t"
-local HELP_ICON = "\124TInterface\\AddOns\\MailCommander\\helpItems.tga:64:256\124t"
-local CTRL_KEY_TEXT,SHIFT_KEY_TEXT=CTRL_KEY_TEXT,SHIFT_KEY_TEXT
-local FILTER,SEND,NEED=FILTER,SEND_LABEL,NEED
-local kpairs=addon:getKpairs()
-local GameTooltip=CreateFrame("GameTooltip","MailCommanderTooltip",UIParent,"GameTooltipTemplate")
 -- locals
+local presets
+local pseudolink="|cff9d9d9d|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
 local slots=16
-local db
 local mcf
 local INEED=1
 local ISEND=2
 local IFILTER=3
+local ICATEGORIES=4
 local currentRequester='NONE'
 local currentReceiver='NONE'
 local lastReceiver
@@ -125,6 +102,60 @@ local sending=setmetatable({},{__index=function() return 0 end})
 local bags=setmetatable({},{__index=function() return 0 end})
 local KCAP=999
 local STARCAP=9999
+local function SendPreset(inbag,requested)
+	local preset=presets[requested or db.categories[requested]]
+	print("asked",requested)
+	if requested=='gold' then
+		print("Sending gold",preset.c(),db.keep[thisToon].gold)
+		local g=preset.c()-db.keep[thisToon].gold
+		if g >0 then
+			SendMailMoneyGold:SetText(g)
+		end
+	end
+end
+presets={
+	gold={t="Interface/ICONS/INV_Misc_Coin_01",i='gold',l=pseudolink:format('gold',MONEY),
+		c=function() return 	math.floor(GetMoney()/10000) end,
+		f=SendPreset
+	},
+}
+local LDB=LibStub:GetLibrary("LibDataBroker-1.1",true)
+local ldb= LDB:NewDataObject(me,fakeLdb) --#ldb
+local icon = LibStub("LibDBIcon-1.0",true)
+
+-- upvalues
+local SetItemButtonTexture,UIDropDownMenu_AddButton=SetItemButtonTexture,UIDropDownMenu_AddButton
+local GetProfessions,GetUnitName,UnitClass,GetProfessionInfo,UnitLevel=GetProfessions,GetUnitName,UnitClass,GetProfessionInfo,UnitLevel
+local ClearCursor,CreateFrame,print,GetCursorInfo=ClearCursor,CreateFrame,print,GetCursorInfo
+local ButtonFrameTemplate_HidePortrait,SendMailFrame,UIParent,InboxFrame=ButtonFrameTemplate_HidePortrait,SendMailFrame,UIParent,InboxFrame
+local	UIDropDownMenu_CreateInfo,UIDropDownMenu_SetWidth=UIDropDownMenu_CreateInfo,UIDropDownMenu_SetWidth
+local UIDropDownMenu_Initialize,UIDropDownMenu_SetText=UIDropDownMenu_Initialize,UIDropDownMenu_SetText
+local PanelTemplates_SetNumTabs,PanelTemplates_SetTab=PanelTemplates_SetNumTabs,PanelTemplates_SetTab
+local SetItemButtonDesaturated,SetItemButtonCount,SetItemButtonStock=SetItemButtonDesaturated,SetItemButtonCount,SetItemButtonStock
+local MailFrame=MailFrame
+local wipe,tinsert,pairs,ipairs,strcmputf8i=wipe,tinsert,pairs,ipairs,strcmputf8i
+local PanelTemplates_DisableTab,PanelTemplates_EnableTab=PanelTemplates_DisableTab,PanelTemplates_EnableTab
+local minibag="Interface\\PaperDollInfoFrame\\UI-GearManager-ItemIntoBag"
+local undo="Interface\\PaperDollInfoFrame\\UI-GearManager-Undo"
+local ignore="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Opaque"
+local ignore2="Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent"
+local KEY_BUTTON1 = "\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:228:283\124t" -- left mouse button
+local KEY_BUTTON2 = "\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:330:385\124t" -- right mouse button
+--local HELP_ICON = "\124TInterface\AddOns\MailCommander\helpItems.tga:256:64\124t"
+local HELP_ICON = "\124TInterface\\AddOns\\MailCommander\\helpItems.tga:64:256\124t"
+local CTRL_KEY_TEXT,SHIFT_KEY_TEXT=CTRL_KEY_TEXT,SHIFT_KEY_TEXT
+local FILTER,SEND,NEED=FILTER,SEND_LABEL,NEED
+local kpairs=addon:getKpairs()
+local GameTooltip=CreateFrame("GameTooltip","MailCommanderTooltip",UIParent,"GameTooltipTemplate")
+
+local oGetItemCount=GetItemCount
+local function GetItemCount(i,bank)
+	if type(i)=="number" then
+		return oGetItemCount(i,bank)
+	else
+		return presets[i].c(i)
+	end
+end
 local function checkBags()
 	wipe(bags)
 	for i=1,4 do
@@ -132,6 +163,15 @@ local function checkBags()
 		if item then
 			bags[item]=bags[item]+1
 		end
+	end
+end
+local function parseLink(itemLink)
+	if (type(itemLink)=='number') then
+		return itemLink
+	elseif (type(itemLink)=="string") then
+		local id=GetItemInfoFromHyperlink(itemLink)
+		if id and id > 0 then return id end
+		return itemLink:match("|Hitem:(.-):")
 	end
 end
 -- ldb extension
@@ -155,6 +195,7 @@ function ldb:OnClick(button)
 	if mcf:IsVisible() then
 		mcf:Hide()
 	else
+		addon:InitData()
 		addon:OpenConfig()
 	end
 end
@@ -241,7 +282,6 @@ local function IsIgnored(toon,ignorelevel)
 	if toon == thisToon then return false end
 	return db.ignored[toon] or (not ignorelevel and addon:GetNumber("MINLEVEL") > toonTable[toon].level)
 end
-
 local function AddButton(i,data,section)
 	local hide=type(data)=='boolean' and not data
 	if not mcf.Items[i] then
@@ -261,8 +301,8 @@ local function AddButton(i,data,section)
 --		frame:SetPoint("TOPLEFT",mcf,"TOPLEFT",10,-60)
 	end
 	frame.ItemButton:SetAttribute("section",section)
-	frame.ItemButton.MailCommanderDragTarget=true
 	if section=="items" then
+		frame.ItemButton.MailCommanderDragTarget=true
 		if type(data)=='table'  then
 			frame.ItemButton:SetAttribute("itemlink",data.l)
 			SetItemButtonTexture(frame.ItemButton,data.t)
@@ -305,6 +345,7 @@ local function AddButton(i,data,section)
 	elseif section=="toons" then
 		local name=data
 		data=toonTable[name]
+		frame.ItemButton.MailCommanderDragTarget=false
 		frame.ItemButton:SetAttribute('toon',name)
 		SetItemButtonDesaturated(frame.ItemButton,false)
 		if IsIgnored(name,true) then
@@ -413,6 +454,7 @@ function addon:InitData()
 		RefreshItemLinksTimer=self:ScheduleRepeatingTimer("RefreshItemlinks",0.2)
 		db.locale=GetLocale()
 	--end
+	self.InitData=function() end -- Get rid of this
 end
 function addon:ApplyMINIMAP(value)
 	if value then
@@ -435,7 +477,7 @@ local function dragStart(frame,button)
 		print(GameTooltipTextLeft1:GetText(),TradeSkillFrame.selectedSkill,GetTradeSkillItemLink(TradeSkillFrame.selectedSkill))
 	--@end-debug@
 		PickupItem(addon:GetItemID(GetTradeSkillItemLink(TradeSkillFrame.selectedSkill)))
-	elseif fname:find("TradeSkillReagent") then
+	elseif fname and fname:find("TradeSkillReagent") then
 --@debug@
 		print(GameTooltipTextLeft1:GetText(),TradeSkillFrame.selectedSkill,GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, frame:GetID()))
 --@end-debug@
@@ -488,6 +530,7 @@ function addon:OnInitialized()
 		realmkey=strconcat(unpack(r))
 	end
 	db=self.db:RegisterNamespace(realmkey,dbDefaults).global
+	wipe(db.categories)
 	local olddb=self.db.factionrealm
 	if rawget(olddb,'toons') then
 		self:Popup("MailCommander\n Data from beta were imported, but you need to check them",10)
@@ -529,7 +572,7 @@ function addon:OnInitialized()
 	self:AddBoolean("DRY",false,"Disable mail sending")
 --@end-debug@
 
-	self:ScheduleTimer("InitData",0.5)
+	self:ScheduleTimer("InitData",0.2)
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:RegisterEvent("PLAYER_LOGOUT")
 	self:RegisterEvent("MAIL_SHOW","CheckTab")
@@ -556,14 +599,15 @@ function addon:OnInitialized()
 	--@end-debug@
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
 	addon.xdb=db
+	MailCommanderFrameAdditional.Name:SetText(L["Temporary slot"])
 	--@debug@
 	db.dbversion=db.dbversion -- Forcing Ace to save it
 	do
-		local OldHook=GameTooltip:GetScript("OnShow")
+		local OldHook=_G.GameTooltip:GetScript("OnShow")
 		if OldHook then
-			GameTooltip:HookScript("OnShow",function(...) OldHook(...) dragManage(...) end)
+			_G.GameTooltip:HookScript("OnShow",function(...) OldHook(...) dragManage(...) end)
 		else
-			GameTooltip:HookScript("OnShow",dragManage)
+			_G.GameTooltip:HookScript("OnShow",dragManage)
 		end
 	end
 	--@end-debug@
@@ -635,7 +679,7 @@ function addon:OnLoad(frame)
 	UIDropDownMenu_SetWidth(frame.Filter, 150);
 	UIDropDownMenu_Initialize(frame.Filter, function(...) self:InitializeDropDown(...) end );
 	UIDropDownMenu_SetText(frame.Filter,self:GetFilter())
-	PanelTemplates_SetNumTabs(frame, 3);
+	PanelTemplates_SetNumTabs(frame, 4);
 	PanelTemplates_SetTab(frame, 1);
 	mcf.tabNEED.tooltip=L["Configures REQUESTS.\n Set what each toon needs"]
 	mcf.tabSEND.tooltip=L["Configures sendings.\n Manages what each toon will send to the others"]
@@ -649,6 +693,7 @@ function addon:OnLoad(frame)
 	texture:SetPoint("RIGHT",0,0)
 	texture:SetTexCoord(0,0.6,0,0.7)
 	MailCommanderFrameAllText:SetText(SHOW.."\n" ..ALL)
+	self:RenderPresets()
 
 end
 function addon:GetFilter()
@@ -758,34 +803,56 @@ function addon:InitializeDropDown(this,level,menulist)
 		end
 	end
 end
+function addon:RenderPresets()
+	local i=1
+	for k,data in pairs(presets) do
+		i=i+1
+		local frame=mcf.Additional[i]
+		if not frame then
+			mcf.Additional[i]=CreateFrame("Frame",nil,mcf,"MailCommanderItemTemplate")
+			frame=mcf.Additional[i]
+			frame:SetPoint("TOPLEFT",mcf.Additional[i-1],"BOTTOMLEFT",0,20)
+			frame.ItemButton:SetAttribute("section","presets")
+		end
+		local itemButton=frame.ItemButton
+		if not data.l then data.l="[Loading]" end
+		itemButton:SetAttribute("itemlink",k)
+		SetItemButtonTexture(itemButton,data.t)
+		itemButton:GetParent().Name:SetText(data.l:gsub('[%]%[]',''))
 
+	end
+end
 function addon:RenderButtonList(store,page)
 	--@debug@
 	print("Refreshing view")
 	--@end-debug@
 	mcf.store=store
 	if currentRequester==thisToon then mcf.Delete:Disable() else mcf.Delete:Enable() end
-	local total=#store
+	--local total=#store
 	page=page or 0
 	local nextpage=false
 	local section =mcf:GetAttribute("section") or "items"
 	local first=page*slots
 	local last=(page+1)*slots
 	local i=1
-	checkBags()
-	for ix,data in pairs(store) do
-		if currentTab==INEED or
-			(currentTab==IFILTER and toonTable[data].level >= self:GetNumber("MINLEVEL")) or
-			(currentTab==ISEND and (self:GetBoolean('ALLSEND') or tonumber(GetItemCount(data.i) or 0) >0)) then
-			if i>first then
-				if i > last then
-					nextpage=true
-					break
-				else
-					AddButton(i-page*slots,data,section)
+	if store then
+		checkBags()
+		for _,data in pairs(store) do
+			print(data)
+			if currentTab==INEED or
+				currentTab==ICATEGORIES or
+				(currentTab==IFILTER and toonTable[data].level >= self:GetNumber("MINLEVEL")) or
+				(currentTab==ISEND and (self:GetBoolean('ALLSEND') or tonumber(GetItemCount(data.i) or 0) >0)) then
+				if i>first then
+					if i > last then
+						nextpage=true
+						break
+					else
+						AddButton(i-page*slots,data,section)
+					end
 				end
+				i=i+1
 			end
-			i=i+1
 		end
 	end
 	if currentTab==INEED then
@@ -794,6 +861,8 @@ function addon:RenderButtonList(store,page)
 		else
 			nextpage=true
 		end
+	elseif currentTab == ISEND then
+		mcf.Send:Enable()
 	end
 	i=i-page*slots
 	if mcf.Items then
@@ -818,6 +887,19 @@ function addon:RenderButtonList(store,page)
 		mcf.NextPageButton:Disable()
 		mcf.NextPageButton.Text:SetTextColor(C.Silver())
 	end
+end
+function addon:RenderCategoryBox()
+	mcf.Send:Hide()
+	mcf.All:Hide()
+	mcf.Delete:Hide()
+	mcf.Filter:Hide()
+	mcf.Info:Show()
+	mcf.Info:SetText("Coming soon!")
+	mcf.Info:SetTextColor(C:Orane())
+	mcf.NameText:SetText(L["Items categories"])
+	mcf:SetAttribute("section","categories")
+	DevTools_Dump(db.categories)
+	self:RenderButtonList(db.categories)
 end
 function addon:RenderNeedBox()
 	mcf.Send:Hide()
@@ -974,23 +1056,49 @@ local function FillMailSlot(bag,slot)
 end
 function addon:Mail(itemId)
 	checkBags()
+	--@debug@
+	print("Mailing",itemId)
+	--@end-debug@
 	if itemId then
 		return self:SearchItem(itemId)
 	else
 		for _,data in pairs(db.requests[currentReceiver]) do
-		self:SearchItem(data.i)
+			self:SearchItem(data.i)
 		end
 	end
 end
 local sortable={}
 function addon:SearchItem(itemId)
 	if IsDisabled(itemId) then return false end
+--@debug@
+		print("Default Scan",type(itemId),itemId)
+--@end-debug@
 	wipe(sortable)
+	local f=function(itemInBag,itemId)
+--@debug@
+		print("Default Scan",itemInBag,itemId)
+--@end-debug@
+		return itemInBag and itemInBag==itemId or false
+	end
+	if type(itemId)=="string" then
+		local preset=presets[itemId] or db.categories[itemId]
+		if type(preset.f)=="function" then
+			f=preset.f
+		elseif type(preset.f)=='table' then
+			for _,id in ipairs(preset.f) do
+				self:SearchItem(id)
+			end
+		else
+		end
+	end
 	for bagId=0,NUM_BAG_SLOTS do
 		for slotId=1,GetContainerNumSlots(bagId) do
 			local itemInBag=GetContainerItemID(bagId,slotId)
-			if itemInBag and itemInBag==itemId then
-				tinsert(sortable,format("%05d:%s:%s",10000+bags[itemId]-select(2,GetContainerItemInfo(bagId,slotId)),bagId,slotId))
+			local rc=f(itemInBag,itemId)
+			if rc then
+				tinsert(sortable,format("%05d:%s:%s",10000+bags[itemInBag]-select(2,GetContainerItemInfo(bagId,slotId)),bagId,slotId))
+			elseif type(rc)=='nil' then
+				return true
 			end
 		end
 	end
@@ -1001,7 +1109,7 @@ function addon:SearchItem(itemId)
 			qt=10000-tonumber(qt)
 			if qt==tobesent[itemId] then
 				self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
-				return
+				return true
 			end
 		end
 		for i=1,#sortable do
@@ -1009,7 +1117,7 @@ function addon:SearchItem(itemId)
 			qt=10000-tonumber(qt)
 			if qt>tobesent[itemId] then
 				self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
-				return
+				return true
 			end
 		end
 		for i=1,#sortable do
@@ -1081,7 +1189,11 @@ function addon:FireMail(this)
 	end
 	local sent=0
 	local body=""
-	local header=L["Mail Commander Bulk Mail"]
+	local header=SendMailSubjectEditBox:GetText()
+	if this or not header or header=="" then
+		header=L["Mail Commander Bulk Mail"]
+	end
+	SendMailSubjectEditBox:SetText(header)
 	for i=1,ATTACHMENTS_MAX_SEND do
 		local name,_,count=GetSendMailItem(i)
 		if name then
@@ -1094,11 +1206,15 @@ function addon:FireMail(this)
 --@end-debug@
 		end
 	end
-	if sent > 0 then
+	if sent > 0 or GetSendMailMoney() then
 		SendMailNameEditBox:SetText(currentReceiver)
 		if this then
 			if not self:GetBoolean('DRY') then
-				SendMail(currentReceiver,header,body)
+				if GetSendMailMoney() then
+					SendMailMailButton_OnClick(SendMailMailButton)
+				else
+					SendMail(currentReceiver,header,body)
+				end
 				self:UpdateMailCommanderFrame()
 			end
 		end
@@ -1128,6 +1244,7 @@ function addon:MailEvent(event,...)
 		self:RefreshSendable()
 		if #sending then
 			local receiver=SendMailNameEditBox:GetText()
+			if not receiver then error("Merda") end
 			if #db.stock[receiver] then
 				for id,qt in pairs(sending) do
 					db.stock[receiver][id]=db.stock[receiver][id]+qt
@@ -1162,6 +1279,24 @@ function addon:OnItemClicked(itemButton,button)
 		return self:ClickedOnItem(itemButton,button)
 	elseif section=="toons" then
 		return self:ClickedOnToon(itemButton,button)
+	elseif section=="presets" then
+		if currentTab==INEED then
+			local key=itemButton:GetAttribute('itemlink')
+			local preset=presets[key]
+--@debug@
+			print(currentRequester)
+			DevTools_Dump(preset)
+--@end-debug@
+			for _,d in ipairs(db.requests[currentRequester]) do
+				if d.i==key then
+					return
+				end
+			end
+			tinsert(db.requests[currentRequester],{t=preset.t,l=preset.l,i=key})
+			self:RefreshSendable()
+			self:UpdateMailCommanderFrame()
+			return
+		end
 	end
 	--@debug@
 	return self:Popup("Invalid section ".. tostring(section))
@@ -1215,7 +1350,7 @@ function addon:RefreshItemlinks(...)
 end
 
 local function SplitFunc(this,qt)
-	local itemId=addon:GetItemID(this:GetAttribute("itemlink"))
+	local itemId=parseLink(this:GetAttribute("itemlink"))
 	local toon=this.toon
 	local key=this.key
 	if key=="cap" and qt==0 then qt=nil end
@@ -1239,12 +1374,14 @@ local function ShowSplitter(data,toon,itemButton,itemId,msg,r,g,b)
 		MailCommanderSplitLabel:Show()
 		return
 end
-function addon:ClickedOnItem(itemButton,button)
+function addon:ClickedOnItem(itemButton,button,section)
 	local shift,ctrl=IsShiftKeyDown(),IsControlKeyDown()
-	local itemId=self:GetItemID(itemButton:GetAttribute("itemlink"))
+	local itemLink=itemButton:GetAttribute("itemlink")
+	local itemId=parseLink(itemLink)
 	local toon=currentTab==INEED and currentRequester or currentReceiver
 	--@debug@
-	print ("Click",itemId,currentTab==INEED and "NEED" or "SEND",itemButton:GetAttribute("itemlink"))
+	print ("Click",itemId,itemLink,currentTab==INEED and "NEED" or "SEND",itemButton:GetAttribute("itemlink"))
+
 	if shift and ctrl then
 		self:Print("---",toon,"---\n",
 			"Sending:",sending[itemId],"\n",
@@ -1255,7 +1392,7 @@ function addon:ClickedOnItem(itemButton,button)
 		)
 	end
 	--@end-debug@
-	if not itemId or itemId==0 then
+	if not itemLink then
 		if currentTab==INEED then
 			--@debug@
 			local type,itemID,itemLink=GetCursorInfo()
@@ -1333,15 +1470,19 @@ function addon:OnDescEnter(frame)
 	GameTooltip:AddLine("Prova")
 end
 function addon:OnItemEnter(itemButton,motion)
+	local section=itemButton:GetAttribute("section")
+--@debug@
+print("Hovering on",itemButton:GetObjectType(),itemButton:GetName(),section)
+--@end-debug@
 	GameTooltip:SetOwner(itemButton,"ANCHOR_RIGHT")
 	GameTooltip:ClearLines()
 	GameTooltip:SetWidth(256)
-	if itemButton:GetAttribute("section")=="items" then
+	if  section =="items" then
 		local itemlink=itemButton:GetAttribute('itemlink')
 		if itemlink then
 			--GameTooltip:SetHyperlink(itemlink)
 			GameTooltip:AddLine(itemlink:gsub('[%]%[]',''))
-			local itemId=self:GetItemID(itemlink)
+			local itemId=parseLink(itemlink)
 			local disabled=IsDisabled(itemId)
 			local color1=C.White
 			local color2=disabled and GREEN_FONT_COLOR or RED_FONT_COLOR
@@ -1379,7 +1520,7 @@ function addon:OnItemEnter(itemButton,motion)
 		else
 			GameTooltip:SetText(L["Dragging an item here will add it to the list"])
 		end
-	elseif itemButton:GetAttribute("section")=="toons" then
+	elseif section=="toons" then
 		local name=itemButton:GetAttribute('toon')
 		if name then
 			local enabled=not IsIgnored(name)
@@ -1392,7 +1533,17 @@ function addon:OnItemEnter(itemButton,motion)
 			GameTooltip:AddDoubleLine(KEY_BUTTON2,REMOVE,color1.r,color1.g,color1.b,RED_FONT_COLOR.r,RED_FONT_COLOR.g,RED_FONT_COLOR.b)
 			GameTooltip:AddLine(L["Use to remove deleted toons"],C:Orange())
 		end
-
+	elseif section=="drop" then
+		GameTooltip:AddLine(L["Temporary item slot"],C:Green())
+		local itemlink=itemButton:GetAttribute('itemlink')
+		if itemlink then
+			GameTooltip:SetHyperlink(itemlink)
+		end
+		GameTooltip:AddLine(L["Items dropped here can be redropped everywhere"])
+	elseif section=="presets" then
+		local itemlink=itemButton:GetAttribute('itemlink')
+		GameTooltip:AddLine(L["Click to add to current toon"],C:Green())
+		GameTooltip:AddLine(presets[itemlink].l)
 	end
 	GameTooltip:Show()
 end
@@ -1418,6 +1569,8 @@ function addon:UpdateMailCommanderFrame()
 		addon:RenderSendBox(mcf)
 	elseif mcf.selectedTab==IFILTER then
 		addon:RenderFilterBox(mcf)
+	elseif mcf.selectedTab==ICATEGORIES then
+		addon:RenderCategoryBox(mcf)
 	else
 --@debug@
 		print("Invalid tab",mcf.selectedTab)
@@ -1426,10 +1579,10 @@ function addon:UpdateMailCommanderFrame()
 	end
 	self:InitializeDropDown(mcf.filter)
 end
-function addon:OnItemDropped(frame)
+function addon:OnItemDropped(itemButton)
 	local type,itemID,itemLink=GetCursorInfo()
 --@debug@
-	print("drop",type,itemID,itemLink)
+	print("drop",type,itemID,itemLink,itemButton:GetName())
 --@end-debug@
 	ClearCursor()
 	if currentTab==ISEND then return end
@@ -1456,7 +1609,15 @@ function addon:OnItemDropped(frame)
 				end
 			end
 			local itemTexture=GetItemIcon(itemID)
-			tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
+			if itemButton:GetName()=="MailCommanderFrameAdditionalItemButton" then
+				itemButton.MailCommanderDragTarget=true
+				itemButton:SetAttribute("itemlink",itemLink)
+				SetItemButtonTexture(itemButton,itemTexture)
+				itemButton:GetParent().Name:SetText(itemLink:gsub('[%]%[]',''))
+			else
+				tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
+				self:RefreshSendable()
+			end
 			dirty=true
 		else
 			self:Popup(L["You cant mail soulbound items"])

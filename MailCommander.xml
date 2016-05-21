@@ -127,12 +127,7 @@
 						PickupItem(MailCommander:GetItemID(self:GetAttribute("itemlink")))
 					</OnDragStart>
 					<OnDragStop>
-						local dest=GetMouseFocus()
-						if type(dest)=="table" and dest.MailCommanderDragTarget then
-							return
-						else
-							ClearCursor()
-						end
+						MailCommander:ScheduleTimer(ClearCursor,0.1)
 					</OnDragStop>
 					<OnLoad>
 						self:RegisterForClicks("LeftButtonUp","RightButtonUp")

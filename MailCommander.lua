@@ -102,6 +102,7 @@ local sending=setmetatable({},{__index=function() return 0 end})
 local bags=setmetatable({},{__index=function() return 0 end})
 local KCAP=999
 local STARCAP=9999
+local MERCHANT_STOCK=MERCHANT_STOCK:gsub('%%d','%%s')
 local function SendPreset(inbag,requested)
 	local preset=presets[requested or db.categories[requested]]
 	print("asked",requested)
@@ -153,8 +154,11 @@ local function GetItemCount(i,bank)
 	if type(i)=="number" then
 		return oGetItemCount(i,bank)
 	else
-		return presets[i].c(i)
+		if presets[i] and type(presets[i].c)=="function" then
+			return presets[i].c(i)
+		end
 	end
+	return 0
 end
 local function checkBags()
 	wipe(bags)
@@ -600,6 +604,7 @@ function addon:OnInitialized()
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
 	addon.xdb=db
 	MailCommanderFrameAdditional.Name:SetText(L["Temporary slot"])
+	MailCommanderFrameAdditional.MailCommanderDragTarget=true
 	--@debug@
 	db.dbversion=db.dbversion -- Forcing Ace to save it
 	do
@@ -1581,8 +1586,16 @@ function addon:UpdateMailCommanderFrame()
 end
 function addon:OnItemDropped(itemButton)
 	local type,itemID,itemLink=GetCursorInfo()
+	ClearCursor()
+	if itemButton:GetName()=="MailCommanderFrameAdditionalItemButton" then
+		itemButton.MailCommanderDragTarget=true
+		itemButton:SetAttribute("itemlink",itemLink)
+		SetItemButtonTexture(itemButton,GetItemIcon(itemID))
+		itemButton:GetParent().Name:SetText(itemLink:gsub('[%]%[]',''))
+		return
+	end
 --@debug@
-	print("drop",type,itemID,itemLink,itemButton:GetName())
+	print("Dropped on ",itemButton:GetName(),type,itemID,itemLink)
 --@end-debug@
 	ClearCursor()
 	if currentTab==ISEND then return end
@@ -1609,15 +1622,8 @@ function addon:OnItemDropped(itemButton)
 				end
 			end
 			local itemTexture=GetItemIcon(itemID)
-			if itemButton:GetName()=="MailCommanderFrameAdditionalItemButton" then
-				itemButton.MailCommanderDragTarget=true
-				itemButton:SetAttribute("itemlink",itemLink)
-				SetItemButtonTexture(itemButton,itemTexture)
-				itemButton:GetParent().Name:SetText(itemLink:gsub('[%]%[]',''))
-			else
-				tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
-				self:RefreshSendable()
-			end
+			tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
+			self:RefreshSendable()
 			dirty=true
 		else
 			self:Popup(L["You cant mail soulbound items"])

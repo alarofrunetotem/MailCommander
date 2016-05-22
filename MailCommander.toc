@@ -21,6 +21,7 @@
 ## X-Date: @project-date-iso@
 ## X-Embeds: LibInit, LibItemUpgradeInfo-1.0,Ace3,LibDBIcon-1.0
 embeds.xml
+wowhead.lua
 localization.lua
 MailCommander.xml
 RelNotes.lua

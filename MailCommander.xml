@@ -377,6 +377,9 @@
 					<OnEnter>
 						MailCommander:OnDeleteEnter(self)
 					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
 				</Scripts>
 			</Button>
 		</Frames>

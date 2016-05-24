@@ -77,7 +77,8 @@ local dbDefaults={
 }
 -- locals
 local presets
-local pseudolink="|cff9d9d9d|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
+--local pseudolink="|cff9d9d9d|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
+local pseudolink="|cffffd200|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
 local slots=16
 local mcf
 local INEED=1
@@ -103,23 +104,90 @@ local bags=setmetatable({},{__index=function() return 0 end})
 local KCAP=999
 local STARCAP=9999
 local MERCHANT_STOCK=MERCHANT_STOCK:gsub('%%d','%%s')
+local MONEY=MONEY
+local ITEM_BNETACCOUNTBOUND=ITEM_BNETACCOUNTBOUND
+local tostring=tostring
+local bit=bit
+local function currentToon()
+	return currentTab==INEED and currentRequester or currentReceiver
+end
 local function SendPreset(inbag,requested)
 	local preset=presets[requested or db.categories[requested]]
-	print("asked",requested)
 	if requested=='gold' then
-		print("Sending gold",preset.c(),db.keep[thisToon].gold)
 		local g=preset.c()-db.keep[thisToon].gold
 		if g >0 then
 			SendMailMoneyGold:SetText(g)
 		end
 	end
 end
+local function nop(rc) return rc end
+local function CountGroup(group)
+	if type(group)=="string" then group=presets[group] end
+	local f=group and group.f or nil
+	local v=group and group.v or nop
+	if type(f)=="function" then
+		return f()
+	elseif type(f)=="table" then
+		local c=0
+		for _,id in ipairs(f) do
+			local t=GetItemCount(id) or 0
+			if t>0 then
+				if v(id) then
+					c=c+t
+				end
+			end
+		end
+		return c
+	elseif type(f)=="number" then
+		return f
+	end
+	return 0
+end
 presets={
-	gold={t="Interface/ICONS/INV_Misc_Coin_01",i='gold',l=pseudolink:format('gold',MONEY),
-		c=function() return 	math.floor(GetMoney()/10000) end,
-		f=SendPreset
+	boatoken={
+		t="Interface/ICONS/INV_Guild_Standard_Alliance_C",i='boatoken',
+		l=pseudolink:format('boatoken',ITEM_BNETACCOUNTBOUND),
+		c=function() return CountGroup('boatoken') end ,
+		v=function (itemid,debug)
+			local toon=currentToon()
+			if db.toons[toon] then
+					local toonClass=db.toons[toon].class
+					local itemMask=ns.classBoa[tostring(itemid)] or 0
+					local toonMask=ns.classes[toonClass] and ns.classes[toonClass].mask or 0
+--@debug@
+					print(itemid,GetItemInfo(itemid),toon,toonClass,toonMask,itemMask,bit.band(toonMask,itemMask))
+--@end-debug@
+					return bit.band(toonMask,itemMask) >0
+			end
+			return false
+		end,
+		f={}
 	},
+	gold={
+		t="Interface/ICONS/INV_Misc_Coin_01",i='gold',
+		l=pseudolink:format('gold',MONEY),
+		c=function() return 	math.floor(GetMoney()/10000) end,
+		f=SendPreset,
+	},
+	trainingstones={
+		t="Interface\\ICONS\\Icon_UpgradeStone_legendary",
+		i=116429,
+		l=pseudolink:format('trainingstones',L["Battle-Training Stone"]),
+		c=function() return CountGroup('trainingstones') end ,
+		f=ns.trainingstones
+	},
+	battlestones={
+		t="INTERFACE\\ICONS\\Icon_UpgradeStone_Rare",
+		l=pseudolink:format('battlestones',L["Battle-Stone"]),
+		i=98715,
+		c=function() return CountGroup('battlestones') end ,
+		f=ns.battlestones
+	}
 }
+_G.MC=presets
+for k,_ in pairs(ns.classBoa) do
+	if tonumber(k) then tinsert(presets.boatoken.f,tonumber(k)) end
+end
 local LDB=LibStub:GetLibrary("LibDataBroker-1.1",true)
 local ldb= LDB:NewDataObject(me,fakeLdb) --#ldb
 local icon = LibStub("LibDBIcon-1.0",true)
@@ -533,30 +601,8 @@ function addon:OnInitialized()
 		table.sort(r)
 		realmkey=strconcat(unpack(r))
 	end
-	db=self.db:RegisterNamespace(realmkey,dbDefaults).global
-	wipe(db.categories)
-	local olddb=self.db.factionrealm
-	if rawget(olddb,'toons') then
-		self:Popup("MailCommander\n Data from beta were imported, but you need to check them",10)
-		local realm=GetRealmName()
-		-- Toons list
-		if type(olddb.toons)=="table" then
-			for name,data in pairs(olddb.toons) do
-				db.toons[name..'-'..realm]=CopyTable(data)
-			end
-		end
-		if type(olddb.requests)=="table" then
-			-- Requests list
-			for name,data in pairs(olddb.requests) do
-				db.requests[name..'-'..realm]=CopyTable(data)
-			end
-		end
-		olddb.toons=nil
-		olddb.requests=nil
-		olddb.disable=nil
-		db.dbversion=1
-	end
-	self.namespace=db
+	self.namespace=self.db:RegisterNamespace(realmkey,dbDefaults)
+	db=self.db:GetNamespace(realmkey).global
 --@debug@
 	local _,version=LibStub("LibInit")
 	self:Print("Using LibInit version",version)
@@ -602,7 +648,7 @@ function addon:OnInitialized()
 	self:HookScript(_G.InboxFrame,"OnHide",print)
 	--@end-debug@
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
-	addon.xdb=db
+	self.xdb=db
 	MailCommanderFrameAdditional.Name:SetText(L["Temporary slot"])
 	MailCommanderFrameAdditional.MailCommanderDragTarget=true
 	--@debug@
@@ -623,6 +669,7 @@ function addon:PLAYER_LOGOUT(event)
 	for _,data in pairs(db.requests[thisToon]) do
 		db.stock[thisToon][data.i]=GetItemCount(data.i,true)-bags[data.i]
 	end
+	db.update=date("%Y-%m-%d %H:%M:%S",time())
 end
 function addon:PLAYER_LEVEL_UP(event,level)
 	loadSelf(level)
@@ -706,7 +753,7 @@ function addon:GetFilter()
 		currentRequester = currentRequester or thisToon ..'-'..thisRealm
 		return currentRequester
 	else
-		if not sendable[currentReceiver] then
+		if not sendable[currentReceiver] and not self:GetBoolean("ALLSEND") then
 			if sendable[currentRequester] then
 				currentReceiver=currentRequester
 			else
@@ -731,6 +778,9 @@ function addon:GetFilter()
 	end
 end
 function addon:SetFilter(info,name)
+--@debug@
+	print("Called setfilter with",name,info)
+--@end-debug@
 	if currentTab==INEED then
 		currentRequester=name
 	else
@@ -843,7 +893,7 @@ function addon:RenderButtonList(store,page)
 	if store then
 		checkBags()
 		for _,data in pairs(store) do
-			print(data)
+
 			if currentTab==INEED or
 				currentTab==ICATEGORIES or
 				(currentTab==IFILTER and toonTable[data].level >= self:GetNumber("MINLEVEL")) or
@@ -1062,7 +1112,7 @@ end
 function addon:Mail(itemId)
 	checkBags()
 	--@debug@
-	print("Mailing",itemId)
+	print("Mailing",itemId,tobesent[itemId])
 	--@end-debug@
 	if itemId then
 		return self:SearchItem(itemId)
@@ -1076,13 +1126,11 @@ local sortable={}
 function addon:SearchItem(itemId)
 	if IsDisabled(itemId) then return false end
 --@debug@
-		print("Default Scan",type(itemId),itemId)
+		print("Default Scan",type(itemId),itemId,tobesent[itemId])
 --@end-debug@
+	if not tobesent[itemId] then tobesent[itemId]=9999 end
 	wipe(sortable)
 	local f=function(itemInBag,itemId)
---@debug@
-		print("Default Scan",itemInBag,itemId)
---@end-debug@
 		return itemInBag and itemInBag==itemId or false
 	end
 	if type(itemId)=="string" then
@@ -1090,8 +1138,11 @@ function addon:SearchItem(itemId)
 		if type(preset.f)=="function" then
 			f=preset.f
 		elseif type(preset.f)=='table' then
+			local v=type(preset.v)=="function" and preset.v or nop
 			for _,id in ipairs(preset.f) do
-				self:SearchItem(id)
+				if v(id) then
+					self:SearchItem(id)
+				end
 			end
 		else
 		end
@@ -1108,6 +1159,10 @@ function addon:SearchItem(itemId)
 		end
 	end
 	if #sortable>0 then
+	--@debug@
+	print("Sortable")
+	DevTools_Dump(sortable)
+	--@end-debug@
 		table.sort(sortable)
 		for i=1,#sortable do
 			local qt,bagId,slotId=strsplit(":",sortable[i])
@@ -1249,6 +1304,9 @@ function addon:MailEvent(event,...)
 		self:RefreshSendable()
 		if #sending then
 			local receiver=SendMailNameEditBox:GetText()
+			--@debug@
+			print("Sending to ",receiver)
+			--@end-debug@
 			if not receiver then error("Merda") end
 			if #db.stock[receiver] then
 				for id,qt in pairs(sending) do
@@ -1365,25 +1423,27 @@ local function SplitFunc(this,qt)
 end
 
 local function ShowSplitter(data,toon,itemButton,itemId,msg,r,g,b)
-		itemButton.SplitStack=SplitFunc
-		itemButton.toon=toon
-		itemButton.key=data
-		StackSplitText:SetText(StackSplitFrame.split);
-		OpenStackSplitFrame(99999,itemButton,"RIGHT","LEFT")
-		StackSplitFrame.split = db[data][toon][itemId] or 0
-		StackSplitText:SetText(StackSplitFrame.split);
-		StackSplitText:SetTextColor(r,g,b)
-		if StackSplitFrame.split > 0 then StackSplitLeftButton:Enable() end
-		MailCommanderSplitLabel.Text:SetTextColor(r,g,b)
-		MailCommanderSplitLabel.Text:SetText(toon .. "\n" .. msg)
-		MailCommanderSplitLabel:Show()
-		return
+	if type(itemId)=="string" and itemId ~= "gold" then return end
+	itemButton.SplitStack=SplitFunc
+	itemButton.toon=toon
+	itemButton.key=data
+	StackSplitText:SetText(StackSplitFrame.split);
+	OpenStackSplitFrame(99999,itemButton,"RIGHT","LEFT")
+	StackSplitFrame.split = db[data][toon][itemId] or 0
+	StackSplitText:SetText(StackSplitFrame.split);
+	StackSplitText:SetTextColor(r,g,b)
+	if StackSplitFrame.split > 0 then StackSplitLeftButton:Enable() end
+	MailCommanderSplitLabel.Text:SetTextColor(r,g,b)
+	MailCommanderSplitLabel.Text:SetText(toon .. "\n" .. msg)
+	MailCommanderSplitLabel:Show()
+	return
 end
 function addon:ClickedOnItem(itemButton,button,section)
 	local shift,ctrl=IsShiftKeyDown(),IsControlKeyDown()
 	local itemLink=itemButton:GetAttribute("itemlink")
 	local itemId=parseLink(itemLink)
 	local toon=currentTab==INEED and currentRequester or currentReceiver
+	dirty=true
 	--@debug@
 	print ("Click",itemId,itemLink,currentTab==INEED and "NEED" or "SEND",itemButton:GetAttribute("itemlink"))
 
@@ -1431,6 +1491,9 @@ function addon:ClickedOnItem(itemButton,button,section)
 			if not self:CanSendMail() then
 				return
 			end
+--@debug@
+			print("tobesent",itemId,tobesent[itemId])
+--@end-debug@
 			self:Mail(itemId)
 			self:ScheduleTimer("FireMail",0.05)
 		end
@@ -1585,6 +1648,7 @@ function addon:UpdateMailCommanderFrame()
 	self:InitializeDropDown(mcf.filter)
 end
 function addon:OnItemDropped(itemButton)
+	dirty=true
 	local type,itemID,itemLink=GetCursorInfo()
 	ClearCursor()
 	if itemButton:GetName()=="MailCommanderFrameAdditionalItemButton" then

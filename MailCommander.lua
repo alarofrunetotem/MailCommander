@@ -108,6 +108,35 @@ local MONEY=MONEY
 local ITEM_BNETACCOUNTBOUND=ITEM_BNETACCOUNTBOUND
 local tostring=tostring
 local bit=bit
+--	for bagId=0,NUM_BAG_SLOTS do
+--		for slotId=1,GetContainerNumSlots(bagId) do
+--			local itemInBag=GetContainerItemID(bagId,slotId)
+--			local rc=f(itemInBag,itemId)
+--			if rc then
+--				tinsert(sortable,format("%05d:%s:%s",10000+bags[itemInBag]-select(2,GetContainerItemInfo(bagId,slotId)),bagId,slotId))
+--			elseif type(rc)=='nil' then
+--				return true
+--			end
+--		end
+--	end
+local function Bags()
+	local bags={}
+	local bag=0
+	local slot=0
+	return function()
+		if not bags[bag] then
+			bags[bag]=GetContainerNumSlots(bag)
+		end
+		slot=slot+1
+		if slot>bags[bag] then
+			slot=1
+			bag=bag+1
+		end
+		if bag<=NUM_BAG_SLOTS then
+			return bag,slot
+		end
+	end
+end
 local function currentToon()
 	return currentTab==INEED and currentRequester or currentReceiver
 end
@@ -119,6 +148,17 @@ local function SendPreset(inbag,requested)
 			SendMailMoneyGold:SetText(g)
 		end
 	end
+end
+local oGetItemCount=GetItemCount
+local function GetItemCount(i,bank)
+	if type(i)=="number" then
+		return oGetItemCount(i,bank)
+	else
+		if presets[i] and type(presets[i].c)=="function" then
+			return presets[i].c(i)
+		end
+	end
+	return 0
 end
 local function nop(rc) return rc end
 local function CountGroup(group)
@@ -154,14 +194,12 @@ presets={
 					local toonClass=db.toons[toon].class
 					local itemMask=ns.classBoa[tostring(itemid)] or 0
 					local toonMask=ns.classes[toonClass] and ns.classes[toonClass].mask or 0
---@debug@
-					print(itemid,GetItemInfo(itemid),toon,toonClass,toonMask,itemMask,bit.band(toonMask,itemMask))
---@end-debug@
 					return bit.band(toonMask,itemMask) >0
 			end
 			return false
 		end,
-		f={}
+		f={},
+		nosplit=true
 	},
 	gold={
 		t="Interface/ICONS/INV_Misc_Coin_01",i='gold',
@@ -174,14 +212,44 @@ presets={
 		i=116429,
 		l=pseudolink:format('trainingstones',L["Battle-Training Stone"]),
 		c=function() return CountGroup('trainingstones') end ,
-		f=ns.trainingstones
+		f=ns.trainingstones,
+		nosplit=true
 	},
 	battlestones={
 		t="INTERFACE\\ICONS\\Icon_UpgradeStone_Rare",
 		l=pseudolink:format('battlestones',L["Battle-Stone"]),
 		i=98715,
 		c=function() return CountGroup('battlestones') end ,
-		f=ns.battlestones
+		f=ns.battlestones,
+		nosplit=true
+	},
+	boe={
+		t="INTERFACE\\ICONS\\INV_Sword_39",
+		l=pseudolink:format("boe",ITEM_BIND_ON_EQUIP),
+		c=function()
+			local count=0
+			for bag,slot in Bags() do
+				local itemlink=GetContainerItemLink(bag,slot)
+				if itemlink and I:IsBoe(itemlink) then
+					local level=I:GetUpgradedItemLevel(itemlink)
+					local toon=currentToon()
+					if level>=(db.keep[currentToon()].boe or 0) and level<=(db.cap[currentToon()].boe or 9999) then
+						count=count+1
+					end
+				end
+			end
+			return count
+		end,
+		f=function(_,_,bagId,slotId)
+			local itemlink=GetContainerItemLink(bagId,slotId)
+			if itemlink and I:IsBoe(itemlink) then
+				return true
+			end
+			return false
+		end,
+		res=false,
+		cap=L['Maximum Level'],
+		keep=L['Minimum Level']
 	}
 }
 _G.MC=presets
@@ -217,17 +285,6 @@ local FILTER,SEND,NEED=FILTER,SEND_LABEL,NEED
 local kpairs=addon:getKpairs()
 local GameTooltip=CreateFrame("GameTooltip","MailCommanderTooltip",UIParent,"GameTooltipTemplate")
 
-local oGetItemCount=GetItemCount
-local function GetItemCount(i,bank)
-	if type(i)=="number" then
-		return oGetItemCount(i,bank)
-	else
-		if presets[i] and type(presets[i].c)=="function" then
-			return presets[i].c(i)
-		end
-	end
-	return 0
-end
 local function checkBags()
 	wipe(bags)
 	for i=1,4 do
@@ -296,9 +353,10 @@ function ldb:OnTooltipShow(...)
 end
 local function SetItemCounts(frame,cap,keep,stock,total)
 		if not frame then return end
+		print(keep)
 		local button=frame.ItemButton
 		if not button then return end
-		if currentTab==IFILTER or type(cap) == "boolean" then
+		if type(cap) == "boolean" then
 			frame.Cap:Hide()
 			frame.Keep:Hide()
 			button.Stock:Hide()
@@ -312,16 +370,18 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 				cap=math.floor(cap/1000) ..'K'
 			end
 		end
-		if keep and keep >KCAP then
-			keep=math.floor(keep/1000) ..'K'
+		if keep then
+			if keep >KCAP then
+				keep=math.floor(keep/1000) ..'K'
+			end
 		else
 			keep=0
 		end
-		frame.Cap:SetFormattedText("Cap:%s",cap)
+		frame.Cap:SetFormattedText("Max:%s",cap)
 		frame.Cap:Show()
 		if not keep then keep=0 end
 		--frame.Keep:SetFormattedText(MERCHANT_STOCK, keep)
-		frame.Keep:SetFormattedText("Keep:%s",keep)
+		frame.Keep:SetFormattedText("Min:%s",keep)
 		frame.Keep:Show()
 		if stock and stock > -1 then
 			total = total or stock
@@ -334,7 +394,7 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 			button.ModifiedStock:Hide()
 		end
 	end
---addon:SetCustomEnvironment(ns)
+
 function addon:SetDbDefaults(default)
 	default.profile.ldb={hide=false}
 	return true
@@ -386,10 +446,12 @@ local function AddButton(i,data,section)
 			end
 			addon:SetLimit(data.i)
 			local totalcount=GetItemCount(data.i) - bags[data.i]
-			local toon=currentTab==INEED and currentRequester or currentReceiver
+			local toon=currentToon()
 			local cap=(db.cap[toon][data.i])
 			local keep=db.keep[toon][data.i] or 0
+			print("Keep from [" ..toon ..']['.. data.i ..']',keep)
 			local count=totalcount-keep-sending[data.i]
+			if data.i=="boe" then count=count+keep end -- Keep contains minimum level.
 			if tobesent[data.i] then
 				count=tobesent[data.i]-sending[data.i]
 			end
@@ -427,7 +489,7 @@ local function AddButton(i,data,section)
 		end
 		frame.Name:SetText(data.text)
 		SetItemButtonTexture(frame.ItemButton,"Interface\\ICONS\\ClassIcon_"..data.class)
-		SetItemCounts(frame)
+		SetItemCounts(frame,false)
 		frame:Show()
 		return 1
 	end
@@ -1028,10 +1090,10 @@ function addon:OnHelpEnter(this)
 	end
 	if currentTab ~= IFILTER then
 		tip:AddLine(L["Item buttons:"],C:Orange())
-		tip:AddLine(HELP_ICON)
+		--tip:AddLine(HELP_ICON)
 		tip:AddLine(L["Definitions"])
-		tip:AddDoubleLine("Keep",L["Minimun storage for the selected toon"],C:Yellow())
-		tip:AddDoubleLine("Cap",L["Maximum storage for the selected toon"],C:Green())
+		tip:AddDoubleLine("Min",L["Minimun storage for the selected toon"],C:Yellow())
+		tip:AddDoubleLine("Max",L["Maximum storage for the selected toon"],C:Green())
 		tip:AddDoubleLine("Reserved",format(L['Like "%s" but for the logged in toon'],"Keep"),C:Cyan())
 
 	end
@@ -1123,16 +1185,14 @@ function addon:Mail(itemId)
 	end
 end
 local sortable={}
+local function standardCheck(itemInBag,itemId,bag,slot)
+	return itemInBag and itemInBag==itemId or false
+end
 function addon:SearchItem(itemId)
 	if IsDisabled(itemId) then return false end
---@debug@
-		print("Default Scan",type(itemId),itemId,tobesent[itemId])
---@end-debug@
 	if not tobesent[itemId] then tobesent[itemId]=9999 end
 	wipe(sortable)
-	local f=function(itemInBag,itemId)
-		return itemInBag and itemInBag==itemId or false
-	end
+	local f=standardCheck
 	if type(itemId)=="string" then
 		local preset=presets[itemId] or db.categories[itemId]
 		if type(preset.f)=="function" then
@@ -1147,21 +1207,19 @@ function addon:SearchItem(itemId)
 		else
 		end
 	end
-	for bagId=0,NUM_BAG_SLOTS do
-		for slotId=1,GetContainerNumSlots(bagId) do
-			local itemInBag=GetContainerItemID(bagId,slotId)
-			local rc=f(itemInBag,itemId)
-			if rc then
-				tinsert(sortable,format("%05d:%s:%s",10000+bags[itemInBag]-select(2,GetContainerItemInfo(bagId,slotId)),bagId,slotId))
-			elseif type(rc)=='nil' then
-				return true
-			end
+	for bagId,slotId in Bags() do
+		local itemInBag=GetContainerItemID(bagId,slotId)
+		local rc=f(itemInBag,itemId,bagId,slotId)
+		if rc then
+			tinsert(sortable,format("%05d:%s:%s",10000+bags[itemInBag]-select(2,GetContainerItemInfo(bagId,slotId)),bagId,slotId))
+		elseif type(rc)=='nil' then
+			return true
 		end
 	end
 	if #sortable>0 then
 	--@debug@
-	print("Sortable")
-	DevTools_Dump(sortable)
+		print("Sortable")
+		DevTools_Dump(sortable)
 	--@end-debug@
 		table.sort(sortable)
 		for i=1,#sortable do
@@ -1242,7 +1300,7 @@ function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
 end
 function addon:FireMail(this)
 --@debug@
-	print("Firemail",this)
+	print("Firemail",this and "Send all" or "Send single")
 --@end-debug@
 	if this then
 		this:Disable()
@@ -1253,26 +1311,29 @@ function addon:FireMail(this)
 	if this or not header or header=="" then
 		header=L["Mail Commander Bulk Mail"]
 	end
-	SendMailSubjectEditBox:SetText(header)
 	for i=1,ATTACHMENTS_MAX_SEND do
 		local name,_,count=GetSendMailItem(i)
 		if name then
-			if self:GetBoolean("MAILBODY") then
-				body=body..name .. " x " .. count .. "\n"
-			end
+			body=body..name .. " x " .. count .. "\n"
 			sent=sent+1
---@debug@
-			print("Sending",name,sent)
---@end-debug@
 		end
 	end
-	if sent > 0 or GetSendMailMoney() then
+	local sentGold=tonumber(SendMailMoneyGold:GetText()) or 0
+--@debug@
+	print("Money",sentGold)
+--@end-debug@
+	if sent +sentGold > 0 then
+		SendMailSubjectEditBox:SetText(header)
 		SendMailNameEditBox:SetText(currentReceiver)
 		if this then
 			if not self:GetBoolean('DRY') then
-				if GetSendMailMoney() then
+				if sentGold>0 then
 					SendMailMailButton_OnClick(SendMailMailButton)
 				else
+					self:Print("Mail sent:\n",body)
+					if self:GetBoolean("MAILBODY") then
+						body=nil
+					end
 					SendMail(currentReceiver,header,body)
 				end
 				self:UpdateMailCommanderFrame()
@@ -1295,6 +1356,7 @@ function addon:OnSendClick(this,button)
 	self:Mail()
 	self:ScheduleTimer("FireMail",1,this)
 end
+local mailRecipient
 function addon:MailEvent(event,...)
 	--@debug@
 	print("Mail event ",event,...)
@@ -1303,21 +1365,28 @@ function addon:MailEvent(event,...)
 		mcf.Send:Enable()
 		self:RefreshSendable()
 		if #sending then
-			local receiver=SendMailNameEditBox:GetText()
+			local receiver=SendMailNameEditBox:GetText() or mailRecipient
 			--@debug@
-			print("Sending to ",receiver)
+			print("Receivers:",receiver,mailRecipient)
 			--@end-debug@
-			if not receiver then error("Merda") end
-			if #db.stock[receiver] then
-				for id,qt in pairs(sending) do
-					db.stock[receiver][id]=db.stock[receiver][id]+qt
+			if not receiver or receiver=='' then receiver=mailRecipient end
+			if receiver=='' then receiver=nil end
+			--@debug@
+			if not receiver or receiver=='' then error("Merda") end
+			--@end-debug@
+			if receiver then
+				if #db.stock[receiver] then
+					for id,qt in pairs(sending) do
+						db.stock[receiver][id]=db.stock[receiver][id]+qt
+					end
 				end
 			end
 		end
 		wipe(sending)
-		self:ScheduleTimer("UpdateMailCommanderFrame",0.1)
+		--self:ScheduleTimer("UpdateMailCommanderFrame",0.1)
 	elseif event=="MAIL_SEND_INFO_UPDATE" then
 		wipe(sending)
+		mailRecipient=SendMailNameEditBox:GetText()
 		for i=1,ATTACHMENTS_MAX_SEND do
 			local name,texture,count=GetSendMailItem(i)
 			if name then
@@ -1421,9 +1490,24 @@ local function SplitFunc(this,qt)
 	addon:SetLimit(itemId)
 	addon:UpdateMailCommanderFrame()
 end
-
-local function ShowSplitter(data,toon,itemButton,itemId,msg,r,g,b)
-	if type(itemId)=="string" and itemId ~= "gold" then return end
+local function ShowSplitter(key,toon,itemButton,itemId,r,g,b)
+	local msg
+	local data=key=="res" and "keep" or key
+	if type(itemId)=="string" then
+		local tab=presets[itemId]
+		if tab.nosplit then return end
+		msg=tab[key]
+		if msg==false then return end
+	end
+	if not msg then
+		if key=='res' then
+			msg=L['Reserved']
+		elseif key=='cap' then
+			msg=L['Maximum Storage']
+		else
+			msg=L['Minimum Storage']
+		end
+	end
 	itemButton.SplitStack=SplitFunc
 	itemButton.toon=toon
 	itemButton.key=data
@@ -1470,13 +1554,13 @@ function addon:ClickedOnItem(itemButton,button,section)
 		return
 	end
 	if shift and ctrl then
-		return ShowSplitter('keep',thisToon,itemButton,itemId,L["Reserved"],C:Cyan())
+		return ShowSplitter('res',thisToon,itemButton,itemId,C:Cyan())
 	end
 	if shift then
-		return ShowSplitter('cap',toon,itemButton,itemId,L["Maximum Storage"],C:Green())
+		return ShowSplitter('cap',toon,itemButton,itemId,C:Green())
 	end
 	if ctrl then
-		return ShowSplitter('keep',toon,itemButton,itemId,L["Minimum Storage"],C:Yellow())
+		return ShowSplitter('keep',toon,itemButton,itemId,C:Yellow())
 	end
 	if currentTab==ISEND then
 		if (button=="LeftButton") then
@@ -1568,17 +1652,28 @@ print("Hovering on",itemButton:GetObjectType(),itemButton:GetName(),section)
 				GameTooltip:AddDoubleLine(KEY_BUTTON2,L["Add to sendmail panel"],color1.r,color1.g,color1.b,GREEN_FONT_COLOR.r,GREEN_FONT_COLOR.g,GREEN_FONT_COLOR.b)
 			end
 			GameTooltip:AddLine("Settings for " .. toon,C:Orange())
-			GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set min storage"]..' (Keep)' ,color1.r,color1.g,color1.b,C:Yellow())
-			GameTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set max storage"]..' (Cap)' ,color1.r,color1.g,color1.b,C:Green())
-			GameTooltip:AddDoubleLine("Keep:",db.keep[toon][itemId],C.White.r,C.White.g,C.White.b,C:Yellow())
-			GameTooltip:AddDoubleLine("Cap:",db.cap[toon][itemId] and db.cap[toon][itemId] or 'N/A',C.White.r,C.White.g,C.White.b,C:Green())
+			if itemId=="boe" then
+				GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set min level"]..' (Min)' ,color1.r,color1.g,color1.b,C:Yellow())
+				GameTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set max level"]..' (Max)' ,color1.r,color1.g,color1.b,C:Green())
+			else
+				GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set min storage"]..' (Min)' ,color1.r,color1.g,color1.b,C:Yellow())
+				GameTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1,L["Set max storage"]..' (Max)' ,color1.r,color1.g,color1.b,C:Green())
+			end
+			GameTooltip:AddDoubleLine("Min:",db.keep[toon][itemId],C.White.r,C.White.g,C.White.b,C:Yellow())
+			GameTooltip:AddDoubleLine("Max:",db.cap[toon][itemId] and db.cap[toon][itemId] or 'N/A',C.White.r,C.White.g,C.White.b,C:Green())
 			GameTooltip:AddDoubleLine("Stock:",db.stock[toon][itemId])
 			local qt=GetItemCount(itemId)-bags[itemId]
 			GameTooltip:AddLine("Availability on " .. C(thisToon,'Green'),C:Orange())
-			GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1,L["Set reserved"] ,color1.r,color1.g,color1.b,C:Cyan())
+			if itemId~="boe" then
+				GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1,L["Set reserved"] ,color1.r,color1.g,color1.b,C:Cyan())
+			end
 			GameTooltip:AddDoubleLine("Total:",qt,nil,nil,nil,C:Silver())
-			GameTooltip:AddDoubleLine("Reserved:",db.keep[thisToon][itemId],nil,nil,nil,C:Cyan())
-			GameTooltip:AddDoubleLine("Sendable:",math.max(0,qt-db.keep[thisToon][itemId]),nil,nil,nil,C:White())
+			if itemId~="boe" then
+				GameTooltip:AddDoubleLine("Reserved:",db.keep[thisToon][itemId],nil,nil,nil,C:Cyan())
+				GameTooltip:AddDoubleLine("Sendable:",math.max(0,qt-db.keep[thisToon][itemId]),nil,nil,nil,C:White())
+			else
+				GameTooltip:AddDoubleLine("Sendable:",qt,nil,nil,nil,C:White())
+			end
 
 --@debug@
 			GameTooltip:AddDoubleLine("Id:",itemId)

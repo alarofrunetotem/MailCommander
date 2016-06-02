@@ -10,7 +10,7 @@
 ## X-Revision: @project-abbreviated-hash@
 ## eMail: alar@aspide.it
 ## URL: http://wow.aspide.it
-## OptionalDeps: Ace3,LibInit,LibItemUpgradeInfo-1.0,Titan, Bazooka, ChocolateBar , FuBar , LibDataBroker-1.1, LibDBIcon-1.0
+## OptionalDeps: Ace3,LibInit,LibItemUpgradeInfo-1.0,Titan, Bazooka, ChocolateBar , FuBar , LibDataBroker-1.1, LibDBIcon-1.0, LibDebug,Devian
 ## DefaultState: Enabled
 ## SavedVariables: dbMAC
 ## X-ID: MCOM

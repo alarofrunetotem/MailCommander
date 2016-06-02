@@ -1,5 +1,6 @@
 local __FILE__=tostring(debugstack(1,2,0):match("(.*):1:")) -- Always check line number in regexp and file
 local me,ns=...
+local pp=print
 --@debug@
 --Postal_BlackBookButton
 -- SendMailNameEditBox
@@ -14,11 +15,7 @@ local DevTools_Dump=function() end
 local addon --#MailCommander
 local LibInit,minor=LibStub("LibInit",true)
 assert(LibInit,me .. ": Missing LibInit, please reinstall")
-if minor >=21 then
-	addon=LibStub("LibInit"):NewAddon(ns,me,{noswitch=false,profile=true,enhancedProfile=true},"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
-else
-	addon=LibStub("LibInit"):NewAddon(me,"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
-end
+addon=LibStub("LibInit"):NewAddon(ns,me,{noswitch=false,profile=true,enhancedProfile=true},"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
 local C=addon:GetColorTable()
 local L=addon:GetLocale()
 local I=LibStub("LibItemUpgradeInfo-1.0")
@@ -228,12 +225,20 @@ presets={
 		l=pseudolink:format("boe",ITEM_BIND_ON_EQUIP),
 		c=function()
 			local count=0
+			if not db then return count end
+			local toon=currentToon()
+			if not toon then return count end
+			if not db.keep then return count end
+			if not db.cap then return count end
+			if not db.keep[toon] then return count end
+			if not db.cap[toon] then return count end
+			local min=db.keep[toon].boe or 0
+			local max=db.cap[toon].boe or 9999
 			for bag,slot in Bags() do
 				local itemlink=GetContainerItemLink(bag,slot)
 				if itemlink and I:IsBoe(itemlink) then
 					local level=I:GetUpgradedItemLevel(itemlink)
-					local toon=currentToon()
-					if level>=(db.keep[currentToon()].boe or 0) and level<=(db.cap[currentToon()].boe or 9999) then
+					if level>=min and level<=max then
 						count=count+1
 					end
 				end
@@ -1833,9 +1838,9 @@ end
 --]]
 _G.MailCommander=addon
 --@debug@
-_G.MAC=addon
-_G.MAC.sendable=sendable
-_G.MAC.toonTable=toonTable
+_G.MCOM=addon
+_G.MCOM.sendable=sendable
+_G.MCOM.toonTable=toonTable
 
 --@end-debug@
 

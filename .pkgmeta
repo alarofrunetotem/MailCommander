@@ -1,7 +1,7 @@
 package-as: MailCommander
 enable-nolib-creation: no
 
-required-dependencies:
+optional-dependencies:
 - datastore
 - datastore_characters
 - datastore_crafts

@@ -14,6 +14,7 @@ local DevTools_Dump=function() end
 --@end-non-debug@]===]
 local addon --#MailCommander
 local LibInit,minor=LibStub("LibInit",true)
+local print=function() end
 assert(LibInit,me .. ": Missing LibInit, please reinstall")
 addon=LibStub("LibInit"):NewAddon(ns,me,{noswitch=false,profile=true,enhancedProfile=true},"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
 local C=addon:GetColorTable()
@@ -22,6 +23,7 @@ local I=LibStub("LibItemUpgradeInfo-1.0")
 local GetItemInfo=I:GetCachingGetItemInfo()
 local math=math
 local db
+local bagCache={}
 local fakeLdb={
 	type = "data source",
 	label = me,
@@ -38,7 +40,7 @@ local dbDefaults={
 		toons={
 			['*']= {}-- char name plus realm
 		},
-		requests={ -- what this toon need: requests[toon][itemid]){itemdata}
+		requests={ -- what this toon need: requests[toon]{itemdata(table)}
 			['**']={}
 		},
 		disabled={
@@ -68,6 +70,8 @@ local dbDefaults={
 		},
 		categories={
 		},
+		updateStock={
+		},
 		ignored={},
 		lastReceiver='NONE'
 	}
@@ -76,6 +80,7 @@ local dbDefaults={
 local presets
 --local pseudolink="|cff9d9d9d|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
 local pseudolink="|cffffd200|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
+local mailRecipient
 local slots=16
 local mcf
 local INEED=1
@@ -87,7 +92,7 @@ local currentReceiver='NONE'
 local lastReceiver
 local thisFaction
 local thisRealm
-local thisToon
+local thisToon=NONE
 local currentTab=0
 local dirty=true
 local shouldsend
@@ -95,27 +100,38 @@ local oldshouldsend
 local sendable={} -- For each toon, it's true if the current one has at least one object to send
 local toonTable={} -- precaculated toon table for initDropDown to avoid bursting memory
 local toonIndex={}
-local tobesent={}
-local sending=setmetatable({},{__index=function() return 0 end})
+local i2s={
+	__index=function(table,key)
+		return rawget(table,tostring(key))
+	end,
+	__newindex=function(table,key,value)
+		return rawset(table,tostring(key),value)
+	end
+}
+local tobesent=setmetatable({},i2s)
+local sending=setmetatable({},{__index=function(table,key)
+	if type(key)=="string" and type(presets[key])=="table" then
+		if key=="gold" then return tonumber(SendMailMoneyGold:GetText()) or 0 end
+		local list=presets[key].list
+		if type (list)=="table" then
+			local c=0
+			for k,v in pairs(table) do
+				if tContains(list,k) then c=c+v end
+			end
+			return c
+		end
+	end
+	return 0
+	end})
 local bags=setmetatable({},{__index=function() return 0 end})
 local KCAP=999
 local STARCAP=9999
+local CAP=999999
 local MERCHANT_STOCK=MERCHANT_STOCK:gsub('%%d','%%s')
 local MONEY=MONEY
 local ITEM_BNETACCOUNTBOUND=ITEM_BNETACCOUNTBOUND
 local tostring=tostring
 local bit=bit
---	for bagId=0,NUM_BAG_SLOTS do
---		for slotId=1,GetContainerNumSlots(bagId) do
---			local itemInBag=GetContainerItemID(bagId,slotId)
---			local rc=f(itemInBag,itemId)
---			if rc then
---				tinsert(sortable,format("%05d:%s:%s",10000+bags[itemInBag]-select(2,GetContainerItemInfo(bagId,slotId)),bagId,slotId))
---			elseif type(rc)=='nil' then
---				return true
---			end
---		end
---	end
 local function Bags()
 	local bags={}
 	local bag=0
@@ -137,93 +153,141 @@ end
 local function currentToon()
 	return currentTab==INEED and currentRequester or currentReceiver
 end
-local function SendPreset(inbag,requested)
-	local preset=presets[requested or db.categories[requested]]
-	if requested=='gold' then
-		local g=preset.c()-db.keep[thisToon].gold
-		if g >0 then
-			SendMailMoneyGold:SetText(g)
-		end
-	end
+--Counter object
+
+local Count={cache={}} --#Count
+function Count:Sending(id,toon)
+	return sending[id]
 end
-local oGetItemCount=GetItemCount
-local function GetItemCount(i,bank)
-	if type(i)=="number" then
-		return oGetItemCount(i,bank)
+function Count:Total(id,toon)
+	if not toon then toon=currentToon() end
+	if type(presets[id].count)=="function" then
+		return presets[id].count(id,toon) or 0
 	else
-		if presets[i] and type(presets[i].c)=="function" then
-			return presets[i].c(i)
-		end
+		return GetItemCount(id) or 0
 	end
-	return 0
 end
-local function nop(rc) return rc end
-local function CountGroup(group)
-	if type(group)=="string" then group=presets[group] end
-	local f=group and group.f or nil
-	local v=group and group.v or nop
-	if type(f)=="function" then
-		return f()
-	elseif type(f)=="table" then
-		local c=0
-		for _,id in ipairs(f) do
-			local t=GetItemCount(id) or 0
-			if t>0 then
-				if v(id) then
-					c=c+t
+function Count:Reserved(id)
+	if id=="boe" then return 0 else return db.keep[thisToon][id] end
+end
+function Count:Keep(id,toon)
+	if not toon then toon=currentToon() end
+	if id=="boe" then return 0 else return db.keep[toon][id] end
+end
+function Count:Cap(id,toon)
+	if not toon then toon=currentToon() end
+	return db.cap[toon][id] or CAP
+end
+function Count:Stock(id,toon)
+	if not toon then toon=currentToon() end
+	if type(presets[id].stock)=="function" then
+		return presets[id].stock(id,toon)
+	else
+		return db.stock[toon][id] or CAP
+	end
+end
+function Count:Sendable(id,toon)
+	if not toon then toon=currentToon() end
+
+	return math.min(Count:Total(id,toon)-Count:Reserved(id)+Count:Sending(id),Count:Cap(id,toon))
+end
+function Count:IsSendable(id,idInBag,toon,bagId,slotId)
+	if not toon then toon=currentToon() end
+	if type(presets[id].validate)=="function" then
+		return presets[id].validate(id,idInBag,toon,bagId,slotId)
+	else
+		return id==idInBag
+	end
+end
+
+local function SendGold()
+	local toon=currentToon()
+	if toon and toon~='NONE' then
+		for _,d in ipairs(db.requests[toon]) do
+			if d.i=='gold' then
+				local g=Count:Sendable('gold')
+				if g >0 then
+					SendMailMoneyGold:SetText(g)
+					break
 				end
 			end
 		end
+	end
+end
+
+local function nop(rc) return rc end
+local function CountGroup(name)
+	local group=name
+	if type(group)=="string" then group=presets[group] end
+	local list=group.list
+	if type(list)=="function" then
+		return list()
+	elseif type(list)=="table" then
+		local c=0
+		for _,id in ipairs(list) do
+			local t=Count:Total(id)
+			if t>0 then
+				c=c+t
+			end
+		end
 		return c
-	elseif type(f)=="number" then
-		return f
+	elseif type(list)=="number" then
+		return list
 	end
 	return 0
 end
-presets={
+presets={ --#presets
 	boatoken={
 		t="Interface/ICONS/INV_Guild_Standard_Alliance_C",i='boatoken',
 		l=pseudolink:format('boatoken',ITEM_BNETACCOUNTBOUND),
-		c=function() return CountGroup('boatoken') end ,
-		v=function (itemid,debug)
-			local toon=currentToon()
+		count=function(dummy,toon)
+			local c=0
+			for _,id in ipairs(presets.boatoken.list) do
+				if presets.boatoken.validate(nil,id,toon) then
+					c=c+Count:Total(id,toon)
+				end
+			end
+			return c
+		end ,
+		validate=function (_,bagItemId,toon,bagId,slotId)
 			if db.toons[toon] then
 					local toonClass=db.toons[toon].class
-					local itemMask=ns.classBoa[tostring(itemid)] or 0
+					local itemMask=ns.classBoa[tostring(bagItemId)] or 0
 					local toonMask=ns.classes[toonClass] and ns.classes[toonClass].mask or 0
 					return bit.band(toonMask,itemMask) >0
 			end
 			return false
 		end,
-		f={},
+		list={},
 		nosplit=true
 	},
 	gold={
 		t="Interface/ICONS/INV_Misc_Coin_01",i='gold',
 		l=pseudolink:format('gold',MONEY),
-		c=function() return 	math.floor(GetMoney()/10000) end,
-		f=SendPreset,
+		count=function() return 	math.floor(GetMoney()/10000) end
 	},
 	trainingstones={
 		t="Interface\\ICONS\\Icon_UpgradeStone_legendary",
 		i=116429,
 		l=pseudolink:format('trainingstones',L["Battle-Training Stone"]),
-		c=function() return CountGroup('trainingstones') end ,
-		f=ns.trainingstones,
+		count=function() return CountGroup('trainingstones') end ,
+		list=ns.trainingstones,
+		validate=function(_,bagItemId) return tContains(ns.trainingstones,bagItemId) end,
 		nosplit=true
 	},
 	battlestones={
 		t="INTERFACE\\ICONS\\Icon_UpgradeStone_Rare",
 		l=pseudolink:format('battlestones',L["Battle-Stone"]),
 		i=98715,
-		c=function() return CountGroup('battlestones') end ,
-		f=ns.battlestones,
+		count=function() return CountGroup('battlestones') end ,
+		list=ns.battlestones,
+		validate=function(_,bagItemId) return tContains(ns.battlestones,bagItemId) end,
 		nosplit=true
 	},
 	boe={
 		t="INTERFACE\\ICONS\\INV_Sword_39",
 		l=pseudolink:format("boe",ITEM_BIND_ON_EQUIP),
-		c=function()
+		count=function()
 			local count=0
 			if not db then return count end
 			local toon=currentToon()
@@ -245,7 +309,7 @@ presets={
 			end
 			return count
 		end,
-		f=function(_,_,bagId,slotId)
+		validate=function(_,_,_,bagId,slotId)
 			local itemlink=GetContainerItemLink(bagId,slotId)
 			if itemlink and I:IsBoe(itemlink) then
 				return true
@@ -257,9 +321,18 @@ presets={
 		keep=L['Minimum Level']
 	}
 }
+local fake={
+	count=false,
+	f=false,
+	validate=false,
+	res=true,
+	cap=L["Maximum Storage"],
+	keep=L["Minimum Storage"],
+}
+setmetatable(presets,{__index=function(t,k) return fake end})
 _G.MC=presets
 for k,_ in pairs(ns.classBoa) do
-	if tonumber(k) then tinsert(presets.boatoken.f,tonumber(k)) end
+	if tonumber(k) then tinsert(presets.boatoken.list,tonumber(k)) end
 end
 local LDB=LibStub:GetLibrary("LibDataBroker-1.1",true)
 local ldb= LDB:NewDataObject(me,fakeLdb) --#ldb
@@ -342,7 +415,7 @@ function ldb:OnTooltipShow(...)
 			if sendable[name] and name~=thisToon and toonTable[name] then
 				self:AddLine(toonTable[name].text)
 				for _,d in pairs(db.requests[name]) do
-					local c=GetItemCount(d.i)-bags[d.i]
+					local c=Count:Sendable(d.i,name)
 					if c and c >0 then
 						self:AddDoubleLine("   " .. d.l,c,nil,nil,nil,C:Green())
 					end
@@ -358,7 +431,6 @@ function ldb:OnTooltipShow(...)
 end
 local function SetItemCounts(frame,cap,keep,stock,total)
 		if not frame then return end
-		print(keep)
 		local button=frame.ItemButton
 		if not button then return end
 		if type(cap) == "boolean" then
@@ -369,11 +441,12 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 			return
 		end
 		if not cap or cap == 0 then
-			cap ='n/a'
-		else
-			if cap > KCAP then
-				cap=math.floor(cap/1000) ..'K'
-			end
+			cap =CAP
+		end
+		if cap==CAP then
+			cap=UNLIMITED
+		elseif cap > KCAP then
+			cap=math.floor(cap/1000) ..'K'
 		end
 		if keep then
 			if keep >KCAP then
@@ -383,10 +456,12 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 			keep=0
 		end
 		frame.Cap:SetFormattedText("Max:%s",cap)
+		frame.Cap:SetWidth(60)
 		frame.Cap:Show()
 		if not keep then keep=0 end
 		--frame.Keep:SetFormattedText(MERCHANT_STOCK, keep)
 		frame.Keep:SetFormattedText("Min:%s",keep)
+		frame.Keep:SetWidth(60)
 		frame.Keep:Show()
 		if stock and stock > -1 then
 			total = total or stock
@@ -399,7 +474,21 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 			button.ModifiedStock:Hide()
 		end
 	end
-
+function addon:BAG_UPDATE_DELAYED(event,...)
+--@debug@
+	print(event)
+--@end-debug@
+	self:InitData()
+	addon:RefreshSendable()
+	if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
+	self:UpdateMailCommanderFrame()
+end
+function addon:PLAYER_MONEY(event,...)
+--@debug@
+	print(event)
+--@end-debug@
+	if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
+end
 function addon:SetDbDefaults(default)
 	default.profile.ldb={hide=false}
 	return true
@@ -450,15 +539,14 @@ local function AddButton(i,data,section)
 				frame.ItemButton.Disabled:Hide()
 			end
 			addon:SetLimit(data.i)
-			local totalcount=GetItemCount(data.i) - bags[data.i]
 			local toon=currentToon()
-			local cap=(db.cap[toon][data.i])
-			local keep=db.keep[toon][data.i] or 0
-			print("Keep from [" ..toon ..']['.. data.i ..']',keep)
-			local count=totalcount-keep-sending[data.i]
-			if data.i=="boe" then count=count+keep end -- Keep contains minimum level.
+			local totalcount=Count:Total(data.i,toon)
+			local cap=Count:Cap(data.i,toon)
+			local keep=currentTab==ISEND and Count:Reserved(data.i) or Count:Keep(data.i,toon)
+			local sending=Count:Sending(data.i,toon)
+			local count=totalcount-keep-sending
 			if tobesent[data.i] then
-				count=tobesent[data.i]-sending[data.i]
+				count=tobesent[data.i]-sending
 			end
 			if cap and count >cap then
 				count=cap
@@ -552,7 +640,6 @@ local function loadDropList()
 	end
 	table.sort(toonIndex,toonSort)
 end
-local RefreshItemLinksTimer
 function addon:InitData()
 	loadSelf()
 	currentRequester=thisToon
@@ -587,10 +674,8 @@ function addon:InitData()
 		end
 	end
 	loadDropList()
-	--DevTools_Dump(toonTable)
-	self:ScheduleRepeatingTimer("RefreshSendable",2)
 	--if db.locale~=GetLocale() then
-		RefreshItemLinksTimer=self:ScheduleRepeatingTimer("RefreshItemlinks",0.2)
+		addon:RefreshItemlinks()
 		db.locale=GetLocale()
 	--end
 	self.InitData=function() end -- Get rid of this
@@ -600,6 +685,7 @@ function addon:ApplyMINIMAP(value)
 		icon:Hide(me)
 	else
 		icon:Show(me)
+		self:RefreshSendable()
 	end
 	self.db.profile.ldb={hide=value}
 end
@@ -659,6 +745,13 @@ local function dragManage(tip)
 		end
 	end
 end
+function addon:OnEnabled()
+	if (_G.ViragDevTool_AddData) then
+		ViragDevTool_AddData(sending, "MC sending")
+		ViragDevTool_AddData(tobesent, "MC tobesent")
+		ViragDevTool_AddData(sendable, "MC sendable")
+	end
+end
 function addon:OnInitialized()
 	checkBags()
 	-- AceDb does not support connected realms, so I am using a namespace
@@ -668,6 +761,8 @@ function addon:OnInitialized()
 		table.sort(r)
 		realmkey=strconcat(unpack(r))
 	end
+	self.Count=Count
+	self.db.RegisterCallback(self,'OnDatabaseShutdown')
 	self.namespace=self.db:RegisterNamespace(realmkey,dbDefaults)
 	db=self.db:GetNamespace(realmkey).global
 --@debug@
@@ -685,13 +780,13 @@ function addon:OnInitialized()
 	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
 	self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:AddBoolean("ALLSEND",false,format(L["Show all characters in %s tab"],SEND),L["Show all toons regardless if they have items to send or not"])
+	self:AddBoolean("BAGS",true,format(L["Switch bags with MailCommander"],SEND),L["Automatically opens and closes bags with MailCommander frame"])
 --@debug@
 	self:AddBoolean("DRY",false,"Disable mail sending")
 --@end-debug@
 
 	self:ScheduleTimer("InitData",0.2)
 	self:RegisterEvent("PLAYER_LEVEL_UP")
-	self:RegisterEvent("PLAYER_LOGOUT")
 	self:RegisterEvent("MAIL_SHOW","CheckTab")
 	self:RegisterEvent("MAIL_CLOSED","CheckTab")
 	self:RegisterEvent("MAIL_SEND_SUCCESS","MailEvent")
@@ -702,12 +797,18 @@ function addon:OnInitialized()
 	self:RegisterEvent("MAIL_SEND_COD_CHANGED","MailEvent")
 	self:RegisterEvent("MAIL_SEND_MONEY_CHANGED","MailEvent")
 	self:RegisterEvent("MAIL_LOCK_SEND_ITEMS","MailEvent")
-
-	self:RegisterEvent("BAG_UPDATE_DELAYED",function(...) dirty=true end)
+	self:RegisterEvent("BAG_UPDATE_DELAYED")
+	self:RegisterEvent("PLAYER_MONEY")
 	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED','TRADE_SKILL_UPDATE'},5,'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
 	self:HookScript(_G.SendMailFrame,"OnHide","CloseChooser")
+	SendMailMailButton:SetScript("PreClick",function()
+		mailRecipient=SendMailNameEditBox:GetText()
+		--@debug@
+		print(mailRecipient)
+		--@end-debug@
+	end)
 	--@debug@
 	self:RegisterEvent("MAIL_INBOX_UPDATE","MailEvent")
 	self:RegisterEvent("UPDATE_PENDING_MAIL","MailEvent")
@@ -731,12 +832,16 @@ function addon:OnInitialized()
 	--@end-debug@
 	return --true
 end
-function addon:PLAYER_LOGOUT(event)
+function addon:OnDatabaseShutdown()
 	checkBags()
-	for _,data in pairs(db.requests[thisToon]) do
-		db.stock[thisToon][data.i]=GetItemCount(data.i,true)-bags[data.i]
+	db.updateStock[thisToon]=date("%Y-%m-%d %H:%M:%S",time())
+	for bag,slot in Bags() do
+		local itemId=select(10,GetContainerItemInfo(bag,slot))
+		if itemId then
+			db.stock[thisToon][itemId]=GetItemCount(itemId,true)-bags[itemId]
+		end
 	end
-	db.update=date("%Y-%m-%d %H:%M:%S",time())
+	db.stock['gold']=Count:Total("gold",thisToon)
 end
 function addon:PLAYER_LEVEL_UP(event,level)
 	loadSelf(level)
@@ -754,13 +859,15 @@ function addon:CheckTab(event)
 		PanelTemplates_SetTab(mcf,INEED)
 		StackSplitFrame:Hide()
 		wipe(tobesent)
+		wipe(sending)
+		SendMailMoneyGold:SetText('')
 	end
 end
 function addon:OpenConfig(tab)
 --@debug@
 	print("Opening config")
 --@end-debug@
-	OpenAllBags(mcf)
+	if self:GetBoolean("BAGS") then OpenAllBags(mcf) end
 	mcf:SetParent(UIParent)
 	mcf:ClearAllPoints()
 	mcf:SetPoint("CENTER")
@@ -820,6 +927,7 @@ function addon:GetFilter()
 		currentRequester = currentRequester or thisToon ..'-'..thisRealm
 		return currentRequester
 	else
+
 		if not sendable[currentReceiver] and not self:GetBoolean("ALLSEND") then
 			if sendable[currentRequester] then
 				currentReceiver=currentRequester
@@ -858,26 +966,23 @@ function addon:SetFilter(info,name)
 	self:UpdateMailCommanderFrame()
 end
 function addon:RefreshSendable()
-	if dirty and not InCombatLockdown() then
-		shouldsend=false
-		wipe(sendable)
-		for name,_ in pairs(db.requests) do
-			if name ~= thisToon then
-				if rawget(db.toons,name) then
-					for _,d in ipairs(db.requests[name]) do
-						local count=GetItemCount(d.i)-bags[d.i]-db.keep[thisToon][d.i]
-						if count and count > 0 then
-							sendable[name]=true
-							shouldsend=true
-							break
-						end
+	shouldsend=false
+	wipe(sendable)
+	for name,_ in pairs(db.requests) do
+		if name ~= thisToon then
+			if rawget(db.toons,name) then
+				for _,d in ipairs(db.requests[name]) do
+					if Count:Sendable(d.i,name) > 0 then
+						print(name,"sendable due to",d.i)
+						sendable[name]=true
+						shouldsend=true
+						break
 					end
 				end
 			end
 		end
-		dirty=false
-		ldb:Update()
 	end
+	ldb:Update()
 end
 
 function addon:InitializeDropDown(this,level,menulist)
@@ -960,11 +1065,10 @@ function addon:RenderButtonList(store,page)
 	if store then
 		checkBags()
 		for _,data in pairs(store) do
-
 			if currentTab==INEED or
 				currentTab==ICATEGORIES or
 				(currentTab==IFILTER and toonTable[data].level >= self:GetNumber("MINLEVEL")) or
-				(currentTab==ISEND and (self:GetBoolean('ALLSEND') or tonumber(GetItemCount(data.i) or 0) >0)) then
+				(currentTab==ISEND and (self:GetBoolean('ALLSEND') or Count:Sendable(data.i) >0)) then
 				if i>first then
 					if i > last then
 						nextpage=true
@@ -1020,10 +1124,13 @@ function addon:RenderCategoryBox()
 	mcf.Info:SetTextColor(C:Orane())
 	mcf.NameText:SetText(L["Items categories"])
 	mcf:SetAttribute("section","categories")
+	--@debug@
 	DevTools_Dump(db.categories)
+	--@end-debug@
 	self:RenderButtonList(db.categories)
 end
 function addon:RenderNeedBox()
+	self:RefreshSendable()
 	mcf.Send:Hide()
 	mcf.All:Hide()
 	mcf.Delete:Show()
@@ -1032,6 +1139,9 @@ function addon:RenderNeedBox()
 	mcf.NameText:SetText(L["Items needed by selected toon"])
 	local toon=self:GetFilter()
 	mcf:SetAttribute("section","items")
+	if (_G.ViragDevTool_AddData) then
+		ViragDevTool_AddData(db.requests[toon], toon)
+	end
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
 end
@@ -1047,6 +1157,7 @@ function addon:RenderFilterBox()
 	self:RenderButtonList(toonIndex)
 end
 function addon:RenderSendBox()
+	self:RefreshSendable()
 	mcf.Send:Show()
 	mcf.All:SetChecked(self:GetBoolean("ALLSEND"))
 	mcf.All:Show()
@@ -1056,7 +1167,11 @@ function addon:RenderSendBox()
 	mcf.Info:Hide()
 	mcf.NameText:SetText(L["Items you can send to selected toon"])
 	local toon=self:GetFilter()
+	print("Sendbox",toon)
 	mcf:SetAttribute("section","items")
+	if (_G.ViragDevTool_AddData) then
+		ViragDevTool_AddData(db.requests[toon], toon)
+	end
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
 end
@@ -1109,12 +1224,13 @@ function addon:OnHelpEnter(this)
 	tip:Show()
 end
 function addon:SetLimit(itemInBag,dbg)
+	if true then return end
 	if not itemInBag then return end
 	local qt=0
 	local toon=currentTab==INEED and currentRequester or currentReceiver
 	local stock=db.stock[toon][itemInBag] or 0
 	local keep=db.keep[thisToon][itemInBag] or 0
-	local cap=(db.cap[toon][itemInBag] or 999999)-stock
+	local cap=(db.cap[toon][itemInBag] or CAP)-stock
 	local qt=GetItemCount(itemInBag,false)-keep-bags[itemInBag]
 	if dbg then
 		print("stock",stock)
@@ -1181,19 +1297,75 @@ function addon:Mail(itemId)
 	--@debug@
 	print("Mailing",itemId,tobesent[itemId])
 	--@end-debug@
-	if itemId then
-		return self:SearchItem(itemId)
-	else
-		for _,data in pairs(db.requests[currentReceiver]) do
-			self:SearchItem(data.i)
-		end
+	if not itemId then
+		SendMailMoneyGold:SetText('')
 	end
+	return self:SearchItem(itemId)
 end
 local sortable={}
 local function standardCheck(itemInBag,itemId,bag,slot)
 	return itemInBag and itemInBag==itemId or false
 end
 function addon:SearchItem(itemId)
+	if IsDisabled(itemId) then return false end
+	wipe(sortable)
+	local toon=currentReceiver
+	for bagId,slotId in Bags() do
+		local bagItemId=GetContainerItemID(bagId,slotId)
+		if bagItemId then
+			if itemId then
+				if Count:IsSendable(itemId,bagItemId,toon,bagId,slotId) then
+					local n=select(2,GetContainerItemInfo(bagId,slotId))
+					tobesent[bagItemId]=Count:Sendable(itemId,toon)
+					tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
+				end
+			else
+				for _,data in pairs(db.requests[currentReceiver]) do
+					if Count:IsSendable(data.i,bagItemId,toon,bagId,slotId) then
+						local n=select(2,GetContainerItemInfo(bagId,slotId))
+						tobesent[bagItemId]=Count:Sendable(data.i,toon)
+						tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
+					end
+				end
+			end
+		end
+	end
+	if Count:Sendable('gold',toon) then
+		SendGold()
+	end
+	if #sortable>0 then
+		table.sort(sortable)
+		for i=1,#sortable do
+			local qt,itemId,bagId,slotId=strsplit(":",sortable[i])
+			if tobesent[itemId]>0 then
+				qt=10000-tonumber(qt)
+				if qt==tobesent[itemId] then
+					self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+					tobesent[itemId]=0
+				end
+			end
+		end
+		for i=1,#sortable do
+			local qt,itemId,bagId,slotId=strsplit(":",sortable[i])
+			if tobesent[itemId]>0 then
+				qt=10000-tonumber(qt)
+				if qt>tobesent[itemId] then
+					self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+					tobesent[itemId]=0
+				end
+			end
+		end
+		for i=1,#sortable do
+			local qt,itemId,bagId,slotId=strsplit(":",sortable[i])
+			if tobesent[itemId]>0 then
+				qt=10000-tonumber(qt)
+				self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+				tobesent[itemId]=tobesent[itemId]-qt
+			end
+		end
+	end
+end
+function addon:xSearchItem(itemId)
 	if IsDisabled(itemId) then return false end
 	if not tobesent[itemId] then tobesent[itemId]=9999 end
 	wipe(sortable)
@@ -1330,6 +1502,7 @@ function addon:FireMail(this)
 	if sent +sentGold > 0 then
 		SendMailSubjectEditBox:SetText(header)
 		SendMailNameEditBox:SetText(currentReceiver)
+		mailRecipient=currentReceiver
 		if this then
 			if not self:GetBoolean('DRY') then
 				if sentGold>0 then
@@ -1339,7 +1512,7 @@ function addon:FireMail(this)
 					if self:GetBoolean("MAILBODY") then
 						body=nil
 					end
-					SendMail(currentReceiver,header,body)
+					SendMail(mailRecipient,header,body)
 				end
 				self:UpdateMailCommanderFrame()
 			end
@@ -1361,16 +1534,14 @@ function addon:OnSendClick(this,button)
 	self:Mail()
 	self:ScheduleTimer("FireMail",1,this)
 end
-local mailRecipient
 function addon:MailEvent(event,...)
 	--@debug@
 	print("Mail event ",event,...)
 	--@end-debug@
 	if event=="MAIL_SEND_SUCCESS" then
 		mcf.Send:Enable()
-		self:RefreshSendable()
+		local receiver=SendMailNameEditBox:GetText() or mailRecipient
 		if #sending then
-			local receiver=SendMailNameEditBox:GetText() or mailRecipient
 			--@debug@
 			print("Receivers:",receiver,mailRecipient)
 			--@end-debug@
@@ -1379,16 +1550,16 @@ function addon:MailEvent(event,...)
 			--@debug@
 			if not receiver or receiver=='' then error("Merda") end
 			--@end-debug@
+			local flagId
 			if receiver then
-				if #db.stock[receiver] then
-					for id,qt in pairs(sending) do
-						db.stock[receiver][id]=db.stock[receiver][id]+qt
-					end
+				for id,qt in pairs(sending) do
+					db.stock[receiver][id]=db.stock[receiver][id]+qt
+					if type(id)=="number" then flagId=id end
 				end
 			end
 		end
 		wipe(sending)
-		--self:ScheduleTimer("UpdateMailCommanderFrame",0.1)
+		wipe(tobesent)
 	elseif event=="MAIL_SEND_INFO_UPDATE" then
 		wipe(sending)
 		mailRecipient=SendMailNameEditBox:GetText()
@@ -1400,7 +1571,14 @@ function addon:MailEvent(event,...)
 			end
 		end
 		self:RefreshSendable()
-		self:ScheduleTimer("UpdateMailCommanderFrame",0.01)
+		self:ScheduleTimer("UpdateMailCommanderFrame",0.5)
+	end
+end
+function addon:DumpToon(toon,id)
+	if id then
+		print("Monitoring",GetItemInfo(id),GetItemCount(id),math.floor(GetMoney()/10000))
+	else
+		print("Monitoring",math.floor(GetMoney()/10000))
 	end
 end
 function addon:CanSendMail()
@@ -1459,31 +1637,31 @@ function addon:OnResetClick(this)
 	StackSplitFrame:Hide()
 	this.SplitStack(this,0)
 end
-local refresher
 function addon:RefreshItemlinks(...)
-	if not refresher then
-		refresher=coroutine.wrap(function()
+	local refresher
+	refresher=coroutine.wrap(function()
 			for i,toon in pairs(db.requests) do
 				for _,data in ipairs(toon) do
-					while true do
-						local link=GetItemInfo(data.i,2)
-						if link then
-							data.l=link
-							break
-						else
-							coroutine.yield(true)
+					if type(data.i)=="number" then -- Ignoring alphanumeric key, which are NOT itemiId
+						while true do
+							local link=GetItemInfo(data.i,2)
+							if link then
+								data.l=link
+								break
+							else
+								C_Timer.After(0.1,refresher)
+								coroutine.yield(true)
+							end
 						end
 					end
+					C_Timer.After(0.01,refresher)
 					coroutine.yield(true)
 				end
 			end
+			refresher=nil
 		end
 		)
-	end
-	if not refresher() then
-		self:CancelTimer(RefreshItemLinksTimer)
-		print("Timer canceled")
-	end
+	refresher()
 end
 
 local function SplitFunc(this,qt)
@@ -1723,14 +1901,16 @@ function addon:OnArrowsClick(this)
 end
 function addon:OnTabClick(tab)
 --@debug@
-	print(tab,tab:GetID(),mcf.selectedTab)
+	print(tab:GetName(),tab:GetID(),mcf.selectedTab)
 --@end-debug@
-	if mcf.selectedTab==tab:GetID() then return end
 	PanelTemplates_SetTab(mcf, tab:GetID())
 	currentTab=mcf.selectedTab
 	self:UpdateMailCommanderFrame()
 end
 function addon:UpdateMailCommanderFrame()
+--@debug@
+	print("UpdateMailCommanderFrame",self:GetFilter(),currentToon(),sendable[currentToon()])
+--@end-debug@
 	if mcf.selectedTab==INEED then
 		addon:RenderNeedBox(mcf)
 	elseif mcf.selectedTab==ISEND then
@@ -1805,37 +1985,6 @@ function addon:Reset(input,...)
 		)
 end
 
---[[
-local addon = LibStub("AceAddon-3.0"):NewAddon("Bunnies", "AceConsole-3.0")
-local bunnyLDB = LibStub("LibDataBroker-1.1"):NewDataObject("Bunnies!", {
-	type = "data source",
-	text = "Bunnies!",
-	icon = "Interface\\Icons\\INV_Chest_Cloth_17",
-	OnClick = function() print("BUNNIES ARE TAKING OVER THE WORLD") end,
-})
-
-function addon:OnInitialize()
-	-- Obviously you'll need a ## SavedVariables: BunniesDB line in your TOC, duh!
-	self.db = LibStub("AceDB-3.0"):New("BunniesDB", {
-		profile = {
-			minimap = {
-				hide = false,
-			},
-		},
-	})
-	icon:Register("Bunnies!", bunnyLDB, self.db.profile.minimap)
-	self:RegisterChatCommand("bunnies", "CommandTheBunnies")
-end
-
-function addon:CommandTheBunnies()
-	self.db.profile.minimap.hide = not self.db.profile.minimap.hide
-	if self.db.profile.minimap.hide then
-		icon:Hide("Bunnies!")
-	else
-		icon:Show("Bunnies!")
-	end
-end
---]]
 _G.MailCommander=addon
 --@debug@
 _G.MCOM=addon

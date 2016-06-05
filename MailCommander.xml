@@ -67,7 +67,7 @@
 		<Size x="153" y="64"/>
 		<Layers>
 			<Layer level="BACKGROUND"  textureSubLevel="-6">
-				<Texture name="$parentBg" file="Interface\MailFrame\UI-MailFrameBG" horizTile="true" vertTile="true" parentKey="Bg">
+				<Texture parentKey="Bg" name="$parentBg" file="Interface\MailFrame\UI-MailFrameBG" horizTile="true" vertTile="true">
 					<Anchors>
 						<Anchor point="TOPLEFT" x="1" y="0"/>
 						<Anchor point="BOTTOMRIGHT" x="-3" y="25"/>
@@ -93,7 +93,7 @@
 						<Anchor point="LEFT" relativeKey="$parent.SlotTexture" relativePoint="RIGHT" x="-5" y="5"/>
 					</Anchors>
 				</FontString>
-				<FontString parentKey="Keep" inherits="GameFontYellowSmall" justifyH="LEFT" hidden="true">
+				<FontString parentKey="Keep" inherits="GameFontYellowSmall" justifyH="LEFT" hidden="true" wordwrap="false">
 					<Anchors>
 						<Anchor point="LEFT"  x="42" y="3" />
 					</Anchors>
@@ -135,6 +135,20 @@
 					</OnLoad>
 				</Scripts>
 			</Button>
+			<Frame>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeKey="$parent.Bg" x="0" y="0" />
+					<Anchor point="BOTTOMRIGHT" relativeKey="$parent.Bg" x="0" y="0" />
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						--print(self:GetParent().ItemButton:GetAttribute("itemlink"))
+						--print(self:GetParent().ItemButton:GetAttribute("section"))
+					</OnEnter>
+					<OnLEave>
+					</OnLEave>
+				</Scripts>
+			</Frame>
 		</Frames>
 	</Frame>
 	<Frame name="MailCommander" virtual="true" toplevel="true" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="PortraitFrameTemplate"><!-- inherits="ButtonFrameTemplate">-->

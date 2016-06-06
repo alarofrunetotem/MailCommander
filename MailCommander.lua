@@ -802,7 +802,7 @@ function addon:OnInitialized()
 	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED','TRADE_SKILL_UPDATE'},5,'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
-	self:HookScript(_G.SendMailFrame,"OnHide","CloseChooser")
+	self:SecureHookScript(_G.SendMailFrame,"OnHide","CloseChooser")
 	SendMailMailButton:SetScript("PreClick",function()
 		mailRecipient=SendMailNameEditBox:GetText()
 		--@debug@
@@ -813,7 +813,7 @@ function addon:OnInitialized()
 	self:RegisterEvent("MAIL_INBOX_UPDATE","MailEvent")
 	self:RegisterEvent("UPDATE_PENDING_MAIL","MailEvent")
 	self:SecureHookScript(_G.InboxFrame,"OnShow",print)
-	self:HookScript(_G.InboxFrame,"OnHide",print)
+	self:SecureHookScript(_G.InboxFrame,"OnHide",print)
 	--@end-debug@
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
 	self.xdb=db

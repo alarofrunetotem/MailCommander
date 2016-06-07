@@ -1321,10 +1321,12 @@ function addon:SearchItem(itemId)
 				end
 			else
 				for _,data in pairs(db.requests[currentReceiver]) do
-					if Count:IsSendable(data.i,bagItemId,toon,bagId,slotId) then
-						local n=select(2,GetContainerItemInfo(bagId,slotId))
-						tobesent[bagItemId]=Count:Sendable(data.i,toon)
-						tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
+					if not IsDisabled(data.i) then
+						if Count:IsSendable(data.i,bagItemId,toon,bagId,slotId) then
+							local n=select(2,GetContainerItemInfo(bagId,slotId))
+							tobesent[bagItemId]=Count:Sendable(data.i,toon)
+							tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
+						end
 					end
 				end
 			end

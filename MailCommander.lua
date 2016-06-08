@@ -159,12 +159,12 @@ local Count={cache={}} --#Count
 function Count:Sending(id,toon)
 	return sending[id]
 end
-function Count:Total(id,toon)
+function Count:Total(id,toon,bank)
 	if not toon then toon=currentToon() end
 	if type(presets[id].count)=="function" then
-		return presets[id].count(id,toon) or 0
+		return presets[id].count(id,toon,bank) or 0
 	else
-		return GetItemCount(id) or 0
+		return GetItemCount(id,bank) or 0
 	end
 end
 function Count:Reserved(id)
@@ -188,8 +188,7 @@ function Count:Stock(id,toon)
 end
 function Count:Sendable(id,toon)
 	if not toon then toon=currentToon() end
-
-	return math.min(Count:Total(id,toon)-Count:Reserved(id)+Count:Sending(id),Count:Cap(id,toon))
+	return math.min(Count:Total(id,thisToon,true)-Count:Reserved(id)+Count:Sending(id),math.min(Count:Total(id,thisToon),Count:Cap(id,toon)))
 end
 function Count:IsSendable(id,idInBag,toon,bagId,slotId)
 	if not toon then toon=currentToon() end
@@ -236,15 +235,19 @@ local function CountGroup(name)
 	end
 	return 0
 end
+local function getProperty(key,toon,itemId,default)
+	local rc,val=pcall(function(toon,itemId) return db[key][toon][itemId] end)
+	if rc then return val or default else return default end
+end
 presets={ --#presets
 	boatoken={
 		t="Interface/ICONS/INV_Guild_Standard_Alliance_C",i='boatoken',
 		l=pseudolink:format('boatoken',ITEM_BNETACCOUNTBOUND),
-		count=function(dummy,toon)
+		count=function(dummy,toon,bank)
 			local c=0
 			for _,id in ipairs(presets.boatoken.list) do
 				if presets.boatoken.validate(nil,id,toon) then
-					c=c+Count:Total(id,toon)
+					c=c+Count:Total(id,toon,bank)
 				end
 			end
 			return c
@@ -287,17 +290,10 @@ presets={ --#presets
 	boe={
 		t="INTERFACE\\ICONS\\INV_Sword_39",
 		l=pseudolink:format("boe",ITEM_BIND_ON_EQUIP),
-		count=function()
+		count=function(dummy,toon)
 			local count=0
-			if not db then return count end
-			local toon=currentToon()
-			if not toon then return count end
-			if not db.keep then return count end
-			if not db.cap then return count end
-			if not db.keep[toon] then return count end
-			if not db.cap[toon] then return count end
-			local min=db.keep[toon].boe or 0
-			local max=db.cap[toon].boe or 9999
+			local min=getProperty('keep',toon,'boe',0)
+			local max=getProperty('cap',toon,'boe',9999)
 			for bag,slot in Bags() do
 				local itemlink=GetContainerItemLink(bag,slot)
 				if itemlink and I:IsBoe(itemlink) then
@@ -312,7 +308,12 @@ presets={ --#presets
 		validate=function(_,_,_,bagId,slotId)
 			local itemlink=GetContainerItemLink(bagId,slotId)
 			if itemlink and I:IsBoe(itemlink) then
-				return true
+				local min=getProperty('keep',toon,'boe',0)
+				local max=getProperty('cap',toon,'boe',9999)
+				local level=I:GetUpgradedItemLevel(itemlink)
+				if level>=min and level<=max then
+					return true
+				end
 			end
 			return false
 		end,
@@ -540,7 +541,7 @@ local function AddButton(i,data,section)
 			end
 			addon:SetLimit(data.i)
 			local toon=currentToon()
-			local totalcount=Count:Total(data.i,toon)
+			local totalcount=Count:Total(data.i,toon,true)
 			local cap=Count:Cap(data.i,toon)
 			local keep=currentTab==ISEND and Count:Reserved(data.i) or Count:Keep(data.i,toon)
 			local sending=Count:Sending(data.i,toon)
@@ -553,6 +554,7 @@ local function AddButton(i,data,section)
 			elseif count <0 then
 				count=0
 			end
+			local count=math.min(count,Count:Total(data.i,toon)) -- count can never be more than the actual quantity in bags
 			SetItemCounts(frame,cap,keep,count,totalcount)
 			SetItemButtonDesaturated(frame.ItemButton,count and count < 1 and currentTab==ISEND)
 		else
@@ -972,11 +974,13 @@ function addon:RefreshSendable()
 		if name ~= thisToon then
 			if rawget(db.toons,name) then
 				for _,d in ipairs(db.requests[name]) do
-					if Count:Sendable(d.i,name) > 0 then
-						print(name,"sendable due to",d.i)
-						sendable[name]=true
-						shouldsend=true
-						break
+					if not IsDisabled(d.i) then
+						if Count:Sendable(d.i,name) > 0 then
+							print(name,"sendable due to",d.i)
+							sendable[name]=true
+							shouldsend=true
+							break
+						end
 					end
 				end
 			end

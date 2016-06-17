@@ -1515,7 +1515,7 @@ function addon:FireMail(this)
 					SendMailMailButton_OnClick(SendMailMailButton)
 				else
 					self:Print("Mail sent:\n",body)
-					if self:GetBoolean("MAILBODY") then
+					if not self:GetBoolean("MAILBODY") then
 						body=nil
 					end
 					SendMail(mailRecipient,header,body)

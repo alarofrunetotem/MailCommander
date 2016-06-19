@@ -14,7 +14,6 @@ local DevTools_Dump=function() end
 --@end-non-debug@]===]
 local addon --#MailCommander
 local LibInit,minor=LibStub("LibInit",true)
-local print=function() end
 assert(LibInit,me .. ": Missing LibInit, please reinstall")
 addon=LibStub("LibInit"):NewAddon(ns,me,{noswitch=false,profile=true,enhancedProfile=true},"AceHook-3.0","AceEvent-3.0","AceTimer-3.0","AceBucket-3.0")
 local C=addon:GetColorTable()
@@ -188,7 +187,7 @@ function Count:Stock(id,toon)
 end
 function Count:Sendable(id,toon)
 	if not toon then toon=currentToon() end
-	return math.min(Count:Total(id,thisToon,true)-Count:Reserved(id)+Count:Sending(id),math.min(Count:Total(id,thisToon),Count:Cap(id,toon)))
+	return math.min(Count:Total(id,toon,true)-Count:Reserved(id)+Count:Sending(id),math.min(Count:Total(id,toon),Count:Cap(id,toon)))
 end
 function Count:IsSendable(id,idInBag,toon,bagId,slotId)
 	if not toon then toon=currentToon() end
@@ -247,7 +246,7 @@ presets={ --#presets
 			local c=0
 			for _,id in ipairs(presets.boatoken.list) do
 				if presets.boatoken.validate(nil,id,toon) then
-					c=c+Count:Total(id,toon,bank)
+					c=c+Count:Total(id,thisToon,bank)
 				end
 			end
 			return c
@@ -752,6 +751,7 @@ function addon:OnEnabled()
 		ViragDevTool_AddData(sending, "MC sending")
 		ViragDevTool_AddData(tobesent, "MC tobesent")
 		ViragDevTool_AddData(sendable, "MC sendable")
+		ViragDevTool_AddData(db.requests, "MC requests")
 	end
 end
 function addon:OnInitialized()
@@ -971,9 +971,11 @@ function addon:RefreshSendable()
 	shouldsend=false
 	wipe(sendable)
 	for name,_ in pairs(db.requests) do
+		pp("Checking",name)
 		if name ~= thisToon then
 			if rawget(db.toons,name) then
 				for _,d in ipairs(db.requests[name]) do
+					pp("  Counting ",d.i,d.l,Count:Sendable(d.i,name))
 					if not IsDisabled(d.i) then
 						if Count:Sendable(d.i,name) > 0 then
 							print(name,"sendable due to",d.i)
@@ -1143,9 +1145,6 @@ function addon:RenderNeedBox()
 	mcf.NameText:SetText(L["Items needed by selected toon"])
 	local toon=self:GetFilter()
 	mcf:SetAttribute("section","items")
-	if (_G.ViragDevTool_AddData) then
-		ViragDevTool_AddData(db.requests[toon], toon)
-	end
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
 end
@@ -1996,6 +1995,7 @@ _G.MailCommander=addon
 _G.MCOM=addon
 _G.MCOM.sendable=sendable
 _G.MCOM.toonTable=toonTable
+_G.MCOUNT=Count
 
 --@end-debug@
 

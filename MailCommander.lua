@@ -253,10 +253,10 @@ presets={ --#presets
 		end ,
 		validate=function (_,bagItemId,toon,bagId,slotId)
 			if db.toons[toon] then
-					local toonClass=db.toons[toon].class
-					local itemMask=ns.classBoa[tostring(bagItemId)] or 0
-					local toonMask=ns.classes[toonClass] and ns.classes[toonClass].mask or 0
-					return bit.band(toonMask,itemMask) >0
+				local toonClass=db.toons[toon].class
+				local itemMask=ns.classBoa[tostring(bagItemId)] or 0
+				local toonMask=ns.classes[toonClass] and ns.classes[toonClass].mask or 0
+				return bit.band(toonMask,itemMask) >0
 			end
 			return false
 		end,
@@ -971,14 +971,11 @@ function addon:RefreshSendable()
 	shouldsend=false
 	wipe(sendable)
 	for name,_ in pairs(db.requests) do
-		pp("Checking",name)
 		if name ~= thisToon then
 			if rawget(db.toons,name) then
 				for _,d in ipairs(db.requests[name]) do
-					pp("  Counting ",d.i,d.l,Count:Sendable(d.i,name))
 					if not IsDisabled(d.i) then
 						if Count:Sendable(d.i,name) > 0 then
-							print(name,"sendable due to",d.i)
 							sendable[name]=true
 							shouldsend=true
 							break

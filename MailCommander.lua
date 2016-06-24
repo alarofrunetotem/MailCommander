@@ -22,6 +22,7 @@ local I=LibStub("LibItemUpgradeInfo-1.0")
 local GetItemInfo=I:GetCachingGetItemInfo()
 local math=math
 local tContains=tContains
+local toc=select(4,GetBuildInfo())
 local db
 local bagCache={}
 local fakeLdb={
@@ -1540,10 +1541,20 @@ function addon:FireMail(this)
 		header=L["Mail Commander Bulk Mail"]
 	end
 	for i=1,ATTACHMENTS_MAX_SEND do
-		local name,_,count=GetSendMailItem(i)
-		if name then
-			body=body..name .. " x " .. count .. "\n"
-			sent=sent+1
+		if toc >=70000 then
+			--name, itemId,textureid, count, quality = GetSendMailItem(index)
+			local name,_,_,count=GetSendMailItem(i)
+			if name then
+				body=body..name .. " x " .. count .. "\n"
+				sent=sent+1
+			end
+		else
+		--name, textureid, count, quality = GetSendMailItem(index)
+			local name,_,count=GetSendMailItem(i)
+			if name then
+				body=body..name .. " x " .. count .. "\n"
+				sent=sent+1
+			end
 		end
 	end
 	local sentGold=tonumber(SendMailMoneyGold:GetText()) or 0

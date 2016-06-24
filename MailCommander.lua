@@ -21,6 +21,7 @@ local L=addon:GetLocale()
 local I=LibStub("LibItemUpgradeInfo-1.0")
 local GetItemInfo=I:GetCachingGetItemInfo()
 local math=math
+local tContains=tContains
 local db
 local bagCache={}
 local fakeLdb={
@@ -154,9 +155,15 @@ local function currentToon()
 end
 --Counter object
 
-local Count={cache={}} --#Count
+local Count={cache={},
+	samefaction=setmetatable({},
+		{__index=function(table,key) table[key]=toonTable[key] and toonTable[key].faction==thisFaction or false return table[key] end})
+} --#Count
 function Count:Sending(id,toon)
 	return sending[id]
+end
+function Count:CanSendMail(toon)
+	return toon and self.samefaction[toon]
 end
 function Count:Total(id,toon,bank)
 	if not toon then toon=currentToon() end
@@ -187,6 +194,10 @@ function Count:Stock(id,toon)
 end
 function Count:Sendable(id,toon)
 	if not toon then toon=currentToon() end
+	if not Count:CanSendMail(toon) then
+		local boa = id=='boatoken' or type(id)=="number" and select(2,GetItemInfo(id))
+		if not boa then return 0 end
+	end
 	return math.min(Count:Total(id,toon,true)-Count:Reserved(id)+Count:Sending(id),math.min(Count:Total(id,toon),Count:Cap(id,toon)))
 end
 function Count:IsSendable(id,idInBag,toon,bagId,slotId)
@@ -194,6 +205,8 @@ function Count:IsSendable(id,idInBag,toon,bagId,slotId)
 	if type(presets[id].validate)=="function" then
 		return presets[id].validate(id,idInBag,toon,bagId,slotId)
 	else
+		local boa=I:IsBoa(GetContainerItemLink(bagId,slotId))
+		if not Count:CanSendMail(toon) and not boa then return false end
 		return id==idInBag
 	end
 end
@@ -233,6 +246,11 @@ local function CountGroup(name)
 		return list
 	end
 	return 0
+end
+local function InGroup(id,group,toon,crossfaction)
+	if crossfaction or Count:CanSendMail(toon) then
+		return tContains(group,id)
+	end
 end
 local function getProperty(key,toon,itemId,default)
 	local rc,val=pcall(function(toon,itemId) return db[key][toon][itemId] end)
@@ -274,7 +292,9 @@ presets={ --#presets
 		l=pseudolink:format('trainingstones',L["Battle-Training Stone"]),
 		count=function() return CountGroup('trainingstones') end ,
 		list=ns.trainingstones,
-		validate=function(_,bagItemId) return tContains(ns.trainingstones,bagItemId) end,
+		validate=function (_,bagItemId,toon,bagId,slotId)
+			return InGroup(bagItemId,ns.trainingstones,toon)
+		end,
 		nosplit=true
 	},
 	battlestones={
@@ -282,8 +302,10 @@ presets={ --#presets
 		l=pseudolink:format('battlestones',L["Battle-Stone"]),
 		i=98715,
 		count=function() return CountGroup('battlestones') end ,
+		validate=function (_,bagItemId,toon,bagId,slotId)
+			return InGroup(bagItemId,ns.battlestones,toon)
+		end,
 		list=ns.battlestones,
-		validate=function(_,bagItemId) return tContains(ns.battlestones,bagItemId) end,
 		nosplit=true
 	},
 	boe={
@@ -304,14 +326,16 @@ presets={ --#presets
 			end
 			return count
 		end,
-		validate=function(_,_,_,bagId,slotId)
+		validate=function (_,bagItemId,toon,bagId,slotId)
 			local itemlink=GetContainerItemLink(bagId,slotId)
 			if itemlink and I:IsBoe(itemlink) then
-				local min=getProperty('keep',toon,'boe',0)
-				local max=getProperty('cap',toon,'boe',9999)
-				local level=I:GetUpgradedItemLevel(itemlink)
-				if level>=min and level<=max then
-					return true
+				if Count:CanSendMail(toon) then
+					local min=getProperty('keep',toon,'boe',0)
+					local max=getProperty('cap',toon,'boe',9999)
+					local level=I:GetUpgradedItemLevel(itemlink)
+					if level>=min and level<=max then
+						return true
+					end
 				end
 			end
 			return false
@@ -614,26 +638,27 @@ local function loadSelf(level)
 	db.toons[thisToon].faction=thisFaction
 	db.toons[thisToon].realm=thisRealm
 end
-local function mkkey(realm,name)
-	local r,k=pcall(strconcat,realm==thisRealm and ' ' or realm,name)
+local function mkkey(realm,faction,name)
+	local r,k=pcall(strconcat,realm==thisRealm and ' ' or realm,faction==thisFaction and ' ' or faction,name)
 	return strlower(k)
 end
 local function toonSort(a,b)
-	local k1=mkkey(toonTable[a].realm,a)
-	local k2=mkkey(toonTable[b].realm,b)
+	local k1=mkkey(toonTable[a].realm,toonTable[a].faction,a)
+	local k2=mkkey(toonTable[b].realm,toonTable[b].faction,b)
 	return strcmputf8i(k1,k2)<0
 end
-local function loadDropList()
+function addon:loadDropList()
 	wipe(toonTable)
 	wipe(toonIndex)
 	for name,data in pairs(db.toons) do
-		if not data.faction or data.faction==thisFaction then
+		if not data.faction or data.faction==thisFaction or self:GetBoolean("ALLFACTIONS") then
 			toonTable[name]={
 				text=data.class and format("|c%s%s (%s %d)|r",_G.RAID_CLASS_COLORS[data.class].colorStr,name,data.localizedClass,data.level) or name,
 				tooltip=(data.p1 and data.p1 .."\n" or "") .. (data.p2 and data.p2 .."\n" or ""),
 				realm=data.realm,
 				level=data.level,
-				class=data.class
+				class=data.class,
+				faction=data.faction
 			}
 			data.text=toonTable[name].text
 			tinsert(toonIndex,name)
@@ -674,12 +699,16 @@ function addon:InitData()
 			end
 		end
 	end
-	loadDropList()
+	self:loadDropList()
 	--if db.locale~=GetLocale() then
 		addon:RefreshItemlinks()
 		db.locale=GetLocale()
 	--end
 	self.InitData=function() end -- Get rid of this
+end
+function addon:ApplyALLFACTIONS(value)
+	self:loadDropList()
+	if MailCommanderFrame:IsVisible() then self:UpdateMailCommanderFrame() end
 end
 function addon:ApplyMINIMAP(value)
 	if value then
@@ -691,7 +720,7 @@ function addon:ApplyMINIMAP(value)
 	self.db.profile.ldb={hide=value}
 end
 function addon:ApplyMINLEVEL(value)
-	loadDropList()
+	self:loadDropList()
 	if MailCommanderFrame:IsVisible() then self:UpdateMailCommanderFrame() end
 
 end
@@ -748,10 +777,7 @@ local function dragManage(tip)
 end
 function addon:OnEnabled()
 	if (_G.ViragDevTool_AddData) then
-		ViragDevTool_AddData(sending, "MC sending")
-		ViragDevTool_AddData(tobesent, "MC tobesent")
-		ViragDevTool_AddData(sendable, "MC sendable")
-		ViragDevTool_AddData(db.requests, "MC requests")
+		ViragDevTool_AddData(addon, "MailCommander")
 	end
 end
 function addon:OnInitialized()
@@ -765,6 +791,7 @@ function addon:OnInitialized()
 	end
 	self.Count=Count
 	self.db.RegisterCallback(self,'OnDatabaseShutdown')
+	DevTools_Dump(self.db:GetNamespace(realmkey,true))
 	self.namespace=self.db:RegisterNamespace(realmkey,dbDefaults)
 	db=self.db:GetNamespace(realmkey).global
 --@debug@
@@ -776,13 +803,20 @@ function addon:OnInitialized()
 	if icon then
 		icon:Register(me,ldb,self.db.profile.ldb)
 	end
-	self:AddBoolean("MAILBODY",false,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
+	self:AddLabel(L["Appearance"])
 	self:AddBoolean("MINIMAP",false,L["Hide minimap icon"],L["If you hide minimap icon, use /mac gui to access configuration and /mac requests to open requests panel"])
+	self:AddBoolean("MAILBODY",false,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
+	self:AddBoolean("BAGS",true,L["Switch bags with MailCommander"],L["Automatically opens and closes bags with MailCommander frame"])
+	self:AddLabel(L["Character selection"])
 	self:AddSlider("MINLEVEL",90,1,100,L["Characters minimum level"],L["Only consider characters above this level"])
-	self:AddOpenCmd("reset","Reset",L["Erase all stored data"])
-	self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
+	--self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:AddBoolean("ALLSEND",false,format(L["Show all characters in %s tab"],SEND),L["Show all toons regardless if they have items to send or not"])
-	self:AddBoolean("BAGS",true,format(L["Switch bags with MailCommander"],SEND),L["Automatically opens and closes bags with MailCommander frame"])
+	self:AddBoolean("ALLFACTIONS",false,L["Show characters from both factions"],L["Show all toons fromj all factions"])
+--@debug@
+	self:AddBoolean("ALLREALMS",false,L["Show characters from all realms"],L["Show all toons from all realms"]).disabled=true
+--@end-debug@
+	self:AddLabel(L["Data management"])
+	self:AddAction("reset","Reset",L["Erase all stored data"])
 --@debug@
 	self:AddBoolean("DRY",false,"Disable mail sending")
 --@end-debug@
@@ -847,11 +881,11 @@ function addon:OnDatabaseShutdown()
 end
 function addon:PLAYER_LEVEL_UP(event,level)
 	loadSelf(level)
-	loadDropList()
+	self:loadDropList()
 	if MailCommanderFrame:IsVisible() then self:UpdateMailCommanderFrame() end
 end
 function addon:TRADE_SKILL_UPDATE()
-	self:ScheduleTimer(loadSelf,5)
+	C_Timer.After(5,loadSelf)
 end
 function addon:CheckTab(event)
 	if event =="MAIL_SHOW" then
@@ -967,15 +1001,18 @@ function addon:SetFilter(info,name)
 	UIDropDownMenu_SetText(mcf.Filter,name)
 	self:UpdateMailCommanderFrame()
 end
-function addon:RefreshSendable()
+function addon:RefreshSendable(dbg)
 	shouldsend=false
 	wipe(sendable)
 	for name,_ in pairs(db.requests) do
 		if name ~= thisToon then
 			if rawget(db.toons,name) then
+				if dbg then pp("Checking",name) end
 				for _,d in ipairs(db.requests[name]) do
 					if not IsDisabled(d.i) then
+						if dbg then pp("       ",d.l,d.i) end
 						if Count:Sendable(d.i,name) > 0 then
+							if dbg then pp("       ",d.l,"GOT!") end
 							sendable[name]=true
 							shouldsend=true
 							break
@@ -998,6 +1035,7 @@ function addon:InitializeDropDown(this,level,menulist)
 	UIDropDownMenu_SetText(mcf.Filter,current=='NONE' and NONE or current)
 	local padding
 	local realm=''
+	local faction=''
 	info.notCheckable=nil
 	info.func = SetFilter
 	info.isTitle=nil
@@ -1005,11 +1043,20 @@ function addon:InitializeDropDown(this,level,menulist)
 	for _,name in ipairs(toonIndex) do
 		local data=toonTable[name]
 		if not IsIgnored(name) and (currentTab==INEED or name~=thisToon) then
+			print(name,data.realm,data.faction,data)
 			if currentTab==INEED or sendable[name] or self:GetBoolean("ALLSEND") then
 			-- Per realm header
 				if realm~=data.realm then
 					realm=data.realm
 					info.text=realm
+					info.isTitle=true
+					info.notCheckable=true
+					info.leftPadding=nil
+					UIDropDownMenu_AddButton(info)
+				end
+				if self:GetBoolean("ALLFACTIONS") and faction~=data.faction then
+					faction=data.faction
+					info.text=faction
 					info.isTitle=true
 					info.notCheckable=true
 					info.leftPadding=nil
@@ -1191,6 +1238,9 @@ function addon:OnDeleteEnter(this)
 	tip:AddLine(L["Remove the selected toon from the droplist"])
 	tip:Show()
 end
+function addon:OnHelpClick(this)
+	return self:Gui()
+end
 function addon:OnHelpEnter(this)
 	local tip=GameTooltip
 	tip:SetOwner(this,"ANCHOR_BOTTOMRIGHT")
@@ -1206,7 +1256,6 @@ function addon:OnHelpEnter(this)
 	elseif currentTab==IFILTER then
 		tip:AddLine(L["Mail Commander character selection"],C:Orange())
 		tip:AddLine(L["You can selectively disable character"],C:Green())
-		tip:AddLine(L["Use gui (/mac gui) to change minimum level"],C:Silver())
 	end
 	if currentTab ~= IFILTER then
 		tip:AddLine(L["Item buttons:"],C:Orange())
@@ -1220,7 +1269,7 @@ function addon:OnHelpEnter(this)
 	if thisFaction=="Neutral" then
 		tip:AddLine(L["ATTENTION: Neutral characters cant use mail"],C:Orange())
 	end
-
+	tip:AddLine(L["Click here to open configuration screen"],C:Green())
 	tip:Show()
 end
 function addon:SetLimit(itemInBag,dbg)
@@ -1512,7 +1561,7 @@ function addon:FireMail(this)
 				else
 					self:Print("Mail sent:\n",body)
 					if not self:GetBoolean("MAILBODY") then
-						body=nil
+						body=""
 					end
 					SendMail(mailRecipient,header,body)
 				end

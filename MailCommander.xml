@@ -186,13 +186,14 @@
 					<OnEnter>
 						MailCommander:OnHelpEnter(self)
 					</OnEnter>
+					<OnClick>
+						MailCommander:OnHelpClick(self)
+					</OnClick>
 					<OnLeave>
 						MailCommander:CloseTip()
 					</OnLeave>
 					<OnLoad>
-						self:SetNormalTexture("Interface\\Buttons\\UI-MicroButton-MainMenu-Up");
-						self:SetPushedTexture("Interface\\Buttons\\UI-MicroButton-MainMenu-Up");
-						self:SetDisabledTexture("Interface\\Buttons\\UI-MicroButton-MainMenu-Up");
+						LoadMicroButtonTextures(self, "Help");
 					</OnLoad>
 				</Scripts>
 			</Button>

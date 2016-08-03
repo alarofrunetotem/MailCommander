@@ -871,6 +871,7 @@ function addon:OnInitialized()
 end
 function addon:OnDatabaseShutdown()
 	checkBags()
+	if type(db.updateStock)~="table" then db.updateStock={} end
 	db.updateStock[thisToon]=date("%Y-%m-%d %H:%M:%S",time())
 	for bag,slot in Bags() do
 		local itemId=select(10,GetContainerItemInfo(bag,slot))

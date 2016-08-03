@@ -1025,10 +1025,10 @@ function addon:RefreshSendable(dbg)
 	end
 	ldb:Update()
 end
-
+local info={}
 function addon:InitializeDropDown(this,level,menulist)
 	local mcf=MailCommanderFrame
-	local info = UIDropDownMenu_CreateInfo();
+	wipe(info)
 	local current = addon:GetFilter();
 	local function SetFilter(...)
 		self:SetFilter(...)

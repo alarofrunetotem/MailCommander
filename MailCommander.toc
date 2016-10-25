@@ -1,9 +1,9 @@
-## Interface: 70000
+## Interface: 70100
 ## Title: MailCommander
 ## Notes: Manages items distribution between multiple toons
 ## Notes-itIT: Gestisce la distribuzione di oggetti fra personaggi multipli
 ## Author: Alar of Daggerspine
-## Version: @project-version@ 6.2.0
+## Version: @project-version@ 7.1.0
 #@do-not-package@
 ## Version: 0.4 6.2.0
 #@end-do-not-package@

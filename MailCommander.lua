@@ -500,18 +500,12 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 		end
 	end
 function addon:BAG_UPDATE_DELAYED(event,...)
---@debug@
-	print(event)
---@end-debug@
 	self:InitData()
 	addon:RefreshSendable()
 	if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
 	self:UpdateMailCommanderFrame()
 end
 function addon:PLAYER_MONEY(event,...)
---@debug@
-	print(event)
---@end-debug@
 	if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
 end
 function addon:SetDbDefaults(default)
@@ -1045,7 +1039,6 @@ function addon:InitializeDropDown(this,level,menulist)
 	for _,name in ipairs(toonIndex) do
 		local data=toonTable[name]
 		if not IsIgnored(name) and (currentTab==INEED or name~=thisToon) then
-			print(name,data.realm,data.faction,data)
 			if currentTab==INEED or sendable[name] or self:GetBoolean("ALLSEND") then
 			-- Per realm header
 				if realm~=data.realm then
@@ -1971,9 +1964,6 @@ function addon:OnTabClick(tab)
 	self:UpdateMailCommanderFrame()
 end
 function addon:UpdateMailCommanderFrame()
---@debug@
-	print("UpdateMailCommanderFrame",self:GetFilter(),currentToon(),sendable[currentToon()])
---@end-debug@
 	if mcf.selectedTab==INEED then
 		addon:RenderNeedBox(mcf)
 	elseif mcf.selectedTab==ISEND then

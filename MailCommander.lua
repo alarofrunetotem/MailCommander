@@ -500,13 +500,27 @@ local function SetItemCounts(frame,cap,keep,stock,total)
 		end
 	end
 function addon:BAG_UPDATE_DELAYED(event,...)
+  print(event)
 	self:InitData()
 	addon:RefreshSendable()
 	if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
-	self:UpdateMailCommanderFrame()
+	--self:UpdateMailCommanderFrame()
+end
+function addon:LOOT_OPENED(event,...)
+  print(event,...)
+end
+function addon:CHAT_MSG_LOOT(event,...)
+  print(event,...)
+end
+function addon:CHAT_MSG_CURRENCY(event,...)
+  print(event,...)
+end
+function addon:LOOT_CLOSED(event,...)
+  print(event,...)
 end
 function addon:PLAYER_MONEY(event,...)
-	if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
+  print(event,...)
+  if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
 end
 function addon:SetDbDefaults(default)
 	default.profile.ldb={hide=false}
@@ -710,7 +724,7 @@ function addon:ApplyMINIMAP(value)
 		icon:Hide(me)
 	else
 		icon:Show(me)
-		self:RefreshSendable()
+		self:RefreshSendable(true)
 	end
 	self.db.profile.ldb={hide=value}
 end
@@ -829,7 +843,11 @@ function addon:OnInitialized()
 	self:RegisterEvent("MAIL_SEND_MONEY_CHANGED","MailEvent")
 	self:RegisterEvent("MAIL_LOCK_SEND_ITEMS","MailEvent")
 	self:RegisterEvent("BAG_UPDATE_DELAYED")
-	self:RegisterEvent("PLAYER_MONEY")
+  self:RegisterEvent("LOOT_OPENED")
+  self:RegisterEvent("LOOT_CLOSED")
+	self:RegisterEvent("CHAT_MSG_CURRENCY")
+  self:RegisterEvent("CHAT_MSG_LOOT")
+  self:RegisterEvent("PLAYER_MONEY")
 	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED','TRADE_SKILL_UPDATE'},5,'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
@@ -997,7 +1015,17 @@ function addon:SetFilter(info,name)
 	UIDropDownMenu_SetText(mcf.Filter,name)
 	self:UpdateMailCommanderFrame()
 end
-function addon:RefreshSendable(dbg)
+function addon:RefreshSendable(sync)
+--@debug@
+   print("Refresh Sendable",sync and "Sync" or "Coroutine")
+--@end-debug@
+  if sync then
+    return self:RefreshSendable()
+  else
+    self:coroutineExecute(0.001,"doRefreshSendable")
+  end
+end
+function addon:doRefreshSendable(dbg)
 	shouldsend=false
 	wipe(sendable)
 	for name,_ in pairs(db.requests) do
@@ -1014,6 +1042,7 @@ function addon:RefreshSendable(dbg)
 							break
 						end
 					end
+					if coroutine.running() then coroutine.yield() end
 				end
 			end
 		end
@@ -1096,7 +1125,7 @@ function addon:RenderPresets()
 end
 function addon:RenderButtonList(store,page)
 	--@debug@
-	print("Refreshing view")
+	print("Refreshing view",tostring(debugstack(1,3,0)))
 	--@end-debug@
 	mcf.store=store
 	if currentRequester==thisToon then mcf.Delete:Disable() else mcf.Delete:Enable() end
@@ -1175,7 +1204,7 @@ function addon:RenderCategoryBox()
 	self:RenderButtonList(db.categories)
 end
 function addon:RenderNeedBox()
-	self:RefreshSendable()
+	self:RefreshSendable(true)
 	mcf.Send:Hide()
 	mcf.All:Hide()
 	mcf.Delete:Show()
@@ -1199,7 +1228,7 @@ function addon:RenderFilterBox()
 	self:RenderButtonList(toonIndex)
 end
 function addon:RenderSendBox()
-	self:RefreshSendable()
+	self:RefreshSendable(true)
 	mcf.Send:Show()
 	mcf.All:SetChecked(self:GetBoolean("ALLSEND"))
 	mcf.All:Show()
@@ -1664,7 +1693,7 @@ function addon:OnItemClicked(itemButton,button)
 				end
 			end
 			tinsert(db.requests[currentRequester],{t=preset.t,l=preset.l,i=key})
-			self:RefreshSendable()
+			self:RefreshSendable(true)
 			self:UpdateMailCommanderFrame()
 			return
 		end
@@ -2020,7 +2049,7 @@ function addon:OnItemDropped(itemButton)
 			end
 			local itemTexture=GetItemIcon(itemID)
 			tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
-			self:RefreshSendable()
+			self:RefreshSendable(true)
 			dirty=true
 		else
 			self:Popup(L["You cant mail soulbound items"])

@@ -733,7 +733,7 @@ function addon:ApplyMINLEVEL(value)
 	if MailCommanderFrame:IsVisible() then self:UpdateMailCommanderFrame() end
 
 end
-local function dragStart(frame,button)
+function addon:dragStart(frame,button)
 	print("DragStart",frame:GetName(),button)
 	local fname=frame:GetName()
 	if fname=="TradeSkillSkillIcon" then
@@ -753,7 +753,7 @@ local function dragStart(frame,button)
 		--@end-debug@
 	end
 end
-local function dragStop(frame)
+function addon:dragStop(frame)
 --@debug@
 	print("DragStop")
 --@end-debug@
@@ -773,21 +773,16 @@ local function dragStop(frame)
 	end
 
 end
-local function dragManage(tip)
+function addon:dragManage(tip)
 	if CursorHasItem() then return end
 	local frame=tip:GetOwner()
-	if not frame:GetScript("OnDragStart") then
-		if mcf:IsShown() and currentTab==INEED then
-			frame:SetScript("OnDragStart",dragStart)
-			frame:SetScript("OnDragStop",dragStop)
-			frame:RegisterForDrag("LeftButton")
-		end
+	if mcf:IsShown() and currentTab==INEED then
+		if not self:IsHooked(frame,"OnDragStart") then self:SecureHookScript(frame,"OnDragStart","dragStart") end
+		if not self:IsHooked(frame,"OnDragStop") then self:SecureHookScript(frame,"OnDragStop","dragStop") end
 	end
 end
 function addon:OnEnabled()
-	if (_G.ViragDevTool_AddData) then
-		ViragDevTool_AddData(addon, "MailCommander")
-	end
+
 end
 function addon:OnInitialized()
 	checkBags()
@@ -871,12 +866,7 @@ function addon:OnInitialized()
 	--@debug@
 	db.dbversion=db.dbversion -- Forcing Ace to save it
 	do
-		local OldHook=_G.GameTooltip:GetScript("OnShow")
-		if OldHook then
-			_G.GameTooltip:HookScript("OnShow",function(...) OldHook(...) dragManage(...) end)
-		else
-			_G.GameTooltip:HookScript("OnShow",dragManage)
-		end
+		self:SecureHookScript(_G.GameTooltip,"OnShow","dragManage")
 	end
 	--@end-debug@
 	return --true
@@ -1240,9 +1230,6 @@ function addon:RenderSendBox()
 	local toon=self:GetFilter()
 	print("Sendbox",toon)
 	mcf:SetAttribute("section","items")
-	if (_G.ViragDevTool_AddData) then
-		ViragDevTool_AddData(db.requests[toon], toon)
-	end
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
 end
@@ -1564,20 +1551,11 @@ function addon:FireMail(this)
 		header=L["Mail Commander Bulk Mail"]
 	end
 	for i=1,ATTACHMENTS_MAX_SEND do
-		if toc >=70000 then
-			--name, itemId,textureid, count, quality = GetSendMailItem(index)
-			local name,_,_,count=GetSendMailItem(i)
-			if name then
-				body=body..name .. " x " .. count .. "\n"
-				sent=sent+1
-			end
-		else
-		--name, textureid, count, quality = GetSendMailItem(index)
-			local name,_,count=GetSendMailItem(i)
-			if name then
-				body=body..name .. " x " .. count .. "\n"
-				sent=sent+1
-			end
+		--name, itemId,textureid, count, quality = GetSendMailItem(index)
+		local name,_,_,count=GetSendMailItem(i)
+		if name then
+			body=body..name .. " x " .. count .. "\n"
+			sent=sent+1
 		end
 	end
 	local sentGold=tonumber(SendMailMoneyGold:GetText()) or 0
@@ -1586,8 +1564,15 @@ function addon:FireMail(this)
 --@end-debug@
 	if sent +sentGold > 0 then
 		SendMailSubjectEditBox:SetText(header)
-		SendMailNameEditBox:SetText(currentReceiver)
 		mailRecipient=currentReceiver
+		local t1,r1=strsplit('-',thisToon)
+		local t2,r2=strsplit('-',mailRecipient)
+		local sendingTo=mailRecipient
+		if r1==r2 then
+			sendingTo=t2
+		end
+		print(thisToon," to ",mailRecipient," (",sendingTo,")")
+		SendMailNameEditBox:SetText(sendingTo)
 		if this then
 			if not self:GetBoolean('DRY') then
 				if sentGold>0 then
@@ -1597,7 +1582,7 @@ function addon:FireMail(this)
 					if not self:GetBoolean("MAILBODY") then
 						body=""
 					end
-					SendMail(mailRecipient,header,body)
+					SendMail(sendingTo,header,body)
 				end
 				self:UpdateMailCommanderFrame()
 			end

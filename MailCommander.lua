@@ -171,7 +171,7 @@ function Count:Total(id,toon,bank)
 	if type(presets[id].count)=="function" then
 		return presets[id].count(id,toon,bank) or 0
 	else
-		return GetItemCount(id,bank) or 0
+		return GetItemCount(id,bank) - bags[id] or 0
 	end
 end
 function Count:Reserved(id)
@@ -199,7 +199,8 @@ function Count:Sendable(id,toon)
 		local boa = id=='boatoken' or type(id)=="number" and select(2,GetItemInfo(id))
 		if not boa then return 0 end
 	end
-	return math.min(Count:Total(id,toon,true)-Count:Reserved(id)+Count:Sending(id),math.min(Count:Total(id,toon),Count:Cap(id,toon)))
+	return math.min(Count:Total(id,toon,true)-Count:Reserved(id)+Count:Sending(id),
+							math.min(Count:Total(id,toon),Count:Cap(id,toon)))
 end
 function Count:IsSendable(id,idInBag,toon,bagId,slotId)
 	if not toon then toon=currentToon() end
@@ -1010,7 +1011,7 @@ function addon:RefreshSendable(sync)
    print("Refresh Sendable",sync and "Sync" or "Coroutine")
 --@end-debug@
   if sync then
-    return self:RefreshSendable()
+    return self:doRefreshSendable()
   else
     self:coroutineExecute(0.001,"doRefreshSendable")
   end

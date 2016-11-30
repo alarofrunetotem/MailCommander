@@ -870,6 +870,7 @@ function addon:OnInitialized()
 		self:SecureHookScript(_G.GameTooltip,"OnShow","dragManage")
 	end
 	--@end-debug@
+	self:loadHelp()
 	return --true
 end
 function addon:OnDatabaseShutdown()

@@ -1127,6 +1127,9 @@ function addon:RenderButtonList(store,page)
 	local first=page*slots
 	local last=(page+1)*slots
 	local i=1
+	if currentTab==INEED then
+		i=i+AddButton(i-page*slots,nil,section)
+	end
 	if store then
 		checkBags()
 		for _,data in pairs(store) do
@@ -1146,13 +1149,7 @@ function addon:RenderButtonList(store,page)
 			end
 		end
 	end
-	if currentTab==INEED then
-		if i-page*slots <=slots then
-			i=i+AddButton(i-page*slots,nil,section)
-		else
-			nextpage=true
-		end
-	elseif currentTab == ISEND then
+	if currentTab == ISEND then
 		mcf.Send:Enable()
 	end
 	i=i-page*slots

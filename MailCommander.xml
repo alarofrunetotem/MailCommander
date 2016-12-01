@@ -408,6 +408,7 @@
 				else
 					self.Send:Enable()
 				end
+				MailCommander:Open()
 			</OnSHow>
 			<OnHide>
 				MailCommander:Close(self)

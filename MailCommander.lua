@@ -25,7 +25,6 @@ local tContains=tContains
 local toc=select(4,GetBuildInfo())
 local db
 local currentID
-local runningdrag
 local bagCache={}
 local fakeLdb={
 	type = "data source",
@@ -752,11 +751,6 @@ function addon:OnInitialized()
 	self.db.RegisterCallback(self,'OnDatabaseShutdown')
 	self.namespace=self.db:RegisterNamespace(realmkey,dbDefaults)
 	db=self.db:GetNamespace(realmkey).global
---@debug@
-	local _,version=LibStub("LibInit")
-	self:Print("Using LibInit version",version)
-	self:Print("Using db version",db.dbversion)
---@end-debug@
 	--DevTools_Dump(db.toons)
 	if icon then
 		icon:Register(me,ldb,self.db.profile.ldb)
@@ -803,9 +797,6 @@ function addon:OnInitialized()
 	self:SecureHookScript(_G.SendMailFrame,"OnHide","CloseChooser")
 	SendMailMailButton:SetScript("PreClick",function()
 		mailRecipient=SendMailNameEditBox:GetText()
-		--@debug@
-		print(mailRecipient)
-		--@end-debug@
 	end)
 	--@debug@
 	self:RegisterEvent("MAIL_INBOX_UPDATE","MailEvent")
@@ -839,17 +830,11 @@ end
 local hooked
 function addon:CloseDrag()
 	currentID=nil
-	self:coroutinePause(runningdrag)
 end
 function addon:StartTooltips()
 	if hooked then return end
 	self:SecureHookScript(_G.GameTooltip,"OnHide","CloseDrag")
 	self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
-	if not runningdrag then
-		runningdrag=self:coroutineExecute(0.05,"pseudoDrag")
-	else
-		runningdrag=self:coroutineRestart("pseudoDrag")
-	end
 --	self:SecureHookScript(_G.ItemRefTooltip,"OnTooltipSetItem", "a2")
 --	self:SecureHookScript(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem", "a3")
 --	self:SecureHookScript(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem", "a4")
@@ -869,8 +854,6 @@ function addon:StopTooltips()
 --	self:Unhook(_G.ShoppingTooltip2,"OnTooltipSetItem")
 --	self:Unhook(_G.ItemRefTooltip, "SetHyperlink")
 --	self:Unhook(_G.GameTooltip, "SetHyperlink")
-	print("Paused",runningDrag)
-	self:coroutinePause(runningdrag)
 	hooked=false
 end
 function addon:OnDatabaseShutdown()
@@ -906,9 +889,6 @@ function addon:CheckTab(event)
 	end
 end
 function addon:OpenConfig(tab)
---@debug@
-	print("Opening config")
---@end-debug@
 	if self:GetBoolean("BAGS") then OpenAllBags(mcf) end
 	mcf:SetParent(UIParent)
 	mcf:ClearAllPoints()
@@ -995,9 +975,6 @@ function addon:GetFilter()
 	end
 end
 function addon:SetFilter(info,name)
---@debug@
-	print("Called setfilter with",name,info)
---@end-debug@
 	if currentTab==INEED then
 		currentRequester=name
 	else
@@ -1008,9 +985,6 @@ function addon:SetFilter(info,name)
 	self:UpdateMailCommanderFrame()
 end
 function addon:RefreshSendable(sync)
---@debug@
-   print("Refresh Sendable",sync and "Sync" or "Coroutine")
---@end-debug@
   if sync then
     return self:doRefreshSendable()
   else
@@ -1116,9 +1090,6 @@ function addon:RenderPresets()
 	end
 end
 function addon:RenderButtonList(store,page)
-	--@debug@
-	print("Refreshing view",tostring(debugstack(1,3,0)))
-	--@end-debug@
 	mcf.store=store
 	if currentRequester==thisToon then mcf.Delete:Disable() else mcf.Delete:Enable() end
 	--local total=#store
@@ -1187,9 +1158,6 @@ function addon:RenderCategoryBox()
 	mcf.Info:SetTextColor(C:Orane())
 	mcf.NameText:SetText(L["Items categories"])
 	mcf:SetAttribute("section","categories")
-	--@debug@
-	DevTools_Dump(db.categories)
-	--@end-debug@
 	self:RenderButtonList(db.categories)
 end
 function addon:RenderNeedBox()
@@ -1227,7 +1195,6 @@ function addon:RenderSendBox()
 	mcf.Info:Hide()
 	mcf.NameText:SetText(L["Items you can send to selected toon"])
 	local toon=self:GetFilter()
-	print("Sendbox",toon)
 	mcf:SetAttribute("section","items")
 	self:RenderButtonList(db.requests[toon])
 	UIDropDownMenu_SetText(mcf.Filter,toon)
@@ -1353,9 +1320,6 @@ local function FillMailSlot(bag,slot)
 end
 function addon:Mail(itemId)
 	checkBags()
-	--@debug@
-	print("Mailing",itemId,tobesent[itemId])
-	--@end-debug@
 	if not itemId then
 		SendMailMoneyGold:SetText('')
 	end
@@ -1455,10 +1419,6 @@ function addon:xSearchItem(itemId)
 		end
 	end
 	if #sortable>0 then
-	--@debug@
-		print("Sortable")
-		DevTools_Dump(sortable)
-	--@end-debug@
 		table.sort(sortable)
 		for i=1,#sortable do
 			local qt,bagId,slotId=strsplit(":",sortable[i])
@@ -1496,10 +1456,6 @@ function addon:Close(this)
 end
 function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
 	local needsplit
---@debug@
-	print("From",bagId,slotId)
-	print(itemId,tobesent[itemId],sending[itemId])
---@end-debug@
 	local limit=tobesent[itemId]-sending[itemId]
 	if limit==0 then return end
 	if qt > limit then
@@ -1508,30 +1464,11 @@ function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
 	else
 		needsplit=false
 	end
---@debug@
-	local name=GetItemInfo(itemId)
-	print('Sending',name,'(',itemId,')','x',qt)
---@end-debug@
 	if needsplit then
-		--@debug@
-		print("Splitting attempt")
-		--@end-debug@
 		local freebag,freeslot=self:ScanBags(0,0)
-		--@debug@
-		print("Empty slot in ",freebag,freeslot)
-		--@end-debug@
 		if freebag and freeslot then
-		--@debug@
-			print("Split",bagId,slotId,qt)
-		--@end-debug@
 			SplitContainerItem(bagId,slotId,qt)
-		--@debug@
-			print("Pickup",freebag,freeslot)
-		--@end-debug@
 			PickupContainerItem(freebag,freeslot)
-		--@debug@
-			print("Using",freebag,freeslot,GetTime())
-		--@end-debug@
 			FillMailSlot(freebag,freeslot)
 		else
 			self:Print(L["Need at least one free slot in bags in order to send less than a full stack"])
@@ -1542,9 +1479,6 @@ function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
 	end
 end
 function addon:FireMail(this)
---@debug@
-	print("Firemail",this and "Send all" or "Send single")
---@end-debug@
 	if this then
 		this:Disable()
 	end
@@ -1563,9 +1497,6 @@ function addon:FireMail(this)
 		end
 	end
 	local sentGold=tonumber(SendMailMoneyGold:GetText()) or 0
---@debug@
-	print("Money",sentGold)
---@end-debug@
 	if sent +sentGold > 0 then
 		SendMailSubjectEditBox:SetText(header)
 		mailRecipient=currentReceiver
@@ -1609,21 +1540,12 @@ function addon:OnSendClick(this,button)
 	self:ScheduleTimer("FireMail",1,this)
 end
 function addon:MailEvent(event,...)
-	--@debug@
-	print("Mail event ",event,...)
-	--@end-debug@
 	if event=="MAIL_SEND_SUCCESS" then
 		mcf.Send:Enable()
 		local receiver=SendMailNameEditBox:GetText() or mailRecipient
 		if #sending then
-			--@debug@
-			print("Receivers:",receiver,mailRecipient)
-			--@end-debug@
 			if not receiver or receiver=='' then receiver=mailRecipient end
 			if receiver=='' then receiver=nil end
-			--@debug@
-			if not receiver or receiver=='' then error("Merda") end
-			--@end-debug@
 			local flagId
 			if receiver then
 				for id,qt in pairs(sending) do
@@ -1672,10 +1594,6 @@ function addon:OnItemClicked(itemButton,button)
 		if currentTab==INEED then
 			local key=itemButton:GetAttribute('itemlink')
 			local preset=presets[key]
---@debug@
-			print(currentRequester)
-			DevTools_Dump(preset)
---@end-debug@
 			for _,d in ipairs(db.requests[currentRequester]) do
 				if d.i==key then
 					return
@@ -1693,7 +1611,7 @@ function addon:OnItemClicked(itemButton,button)
 				return PickupItem(key)
 			end
 		elseif button=="LeftButton" then
-			self:OnItemDroppe(itemButton)
+			self:OnItemDropped(itemButton)
 		elseif button=="RightButton" then
 			return self:SetAdditional()
 		else
@@ -1799,26 +1717,9 @@ function addon:ClickedOnItem(itemButton,button,section)
 	local itemId=parseLink(itemLink)
 	local toon=currentTab==INEED and currentRequester or currentReceiver
 	dirty=true
-	--@debug@
-	print ("Click",itemId,itemLink,currentTab==INEED and "NEED" or "SEND",itemButton:GetAttribute("itemlink"))
-
-	if shift and ctrl then
-		self:Print("---",toon,"---\n",
-			"Sending:",sending[itemId],"\n",
-			"Tobesent:",tobesent[itemId],"\n",
-			"Stock:",db.stock[toon][itemId],"\n",
-			"Keep:",db.keep[toon][itemId],"\n",
-			"Cap:",db.cap[toon][itemId]
-		)
-	end
-	--@end-debug@
 	if not itemLink then
 		if currentTab==INEED then
-			--@debug@
-			local type,itemID,itemLink=GetCursorInfo()
-			print("click",type,itemID,itemLink)
-			--@end-debug@
-			if itemID then
+			if GetCursorInfo() then
 				self:OnItemDropped(itemButton)
 			end
 		end
@@ -1846,9 +1747,6 @@ function addon:ClickedOnItem(itemButton,button,section)
 			if not self:CanSendMail() then
 				return
 			end
---@debug@
-			print("tobesent",itemId,tobesent[itemId])
---@end-debug@
 			self:Mail(itemId)
 			self:ScheduleTimer("FireMail",0.05)
 		end
@@ -1894,9 +1792,6 @@ function addon:OnDescEnter(frame)
 end
 function addon:OnItemEnter(itemButton,motion)
 	local section=itemButton:GetAttribute("section")
---@debug@
-print("Hovering on",itemButton:GetObjectType(),itemButton:GetName(),section)
---@end-debug@
 	GameTooltip:SetOwner(itemButton,"ANCHOR_RIGHT")
 	GameTooltip:ClearLines()
 	GameTooltip:SetWidth(256)
@@ -1945,7 +1840,6 @@ print("Hovering on",itemButton:GetObjectType(),itemButton:GetName(),section)
 			else
 				GameTooltip:AddDoubleLine("Sendable:",qt,nil,nil,nil,C:White())
 			end
-
 --@debug@
 			GameTooltip:AddDoubleLine("Id:",itemId)
 			GameTooltip:AddDoubleLine("Sending:",sending[itemId])
@@ -1982,15 +1876,9 @@ print("Hovering on",itemButton:GetObjectType(),itemButton:GetName(),section)
 	GameTooltip:Show()
 end
 function addon:OnArrowsClick(this)
-	--@debug@
-	print("Arrow",this:GetID())
-	--@end-debug@
 	self:RenderButtonList(mcf.store,this:GetID())
 end
 function addon:OnTabClick(tab)
---@debug@
-	print(tab:GetName(),tab:GetID(),mcf.selectedTab)
---@end-debug@
 	PanelTemplates_SetTab(mcf, tab:GetID())
 	currentTab=mcf.selectedTab
 	if currentTab==INEED then
@@ -2029,9 +1917,6 @@ function addon:OnItemDropped(itemButton)
 	else
 		return
 	end
---@debug@
-	print("Dropped on ",itemButton:GetName(),type,itemID,itemLink)
---@end-debug@
 	ClearCursor()
 	if itemButton:GetName()=="MailCommanderFrameAdditionalItemButton" then
 		self:SetAdditional(itemLink)
@@ -2044,9 +1929,6 @@ function addon:OnItemDropped(itemButton)
 	if mcf.selectedTab==INEED then
 		if (not I:IsBop(itemLink)) then
 			local itemID=self:GetItemID(itemLink)
-			--@debug@
-			print(toon,itemID)
-			--@end-debug@
 			for _,d in ipairs(db.requests[toon]) do
 				if d.i==itemID then
 					return
@@ -2107,33 +1989,7 @@ function addon:a8(tip,link)
 	print("a8")
 	return self:attachItemTooltip(tip,link)
 end
-function addon:pseudoDrag()
-	local mousedown
-	local x,y=0,0
-	local oldx,oldy=0,0
-	while true do
-		if not GetCursorInfo() then
-			if mousedown then
-				mousedown=IsMouseButtonDown("LeftButton")
-				if mousedown then
-					x,y=GetCursorPosition()
-					if x~=oldx or y~=oldy then
-						x=oldx
-						y=oldy
-						self:Pickup(currentID)
-						self:coroutinePause(runningdrag)
-					end
-				end
-			else
-				mousedown=IsMouseButtonDown("LeftButton")
-				if mousedown then
-					oldx,oldy=GetCursorPosition()
-				end
-			end
-		end
-		coroutine.yield()												
-	end
-end
+local draggables={}
 function addon:attachItemTooltip(tip,link,...)
 	if not link and tip.GetItem then link=select(2,tip:GetItem()) end
 	if link then 
@@ -2149,9 +2005,10 @@ function addon:attachItemTooltip(tip,link,...)
 			end
 		end	
 		if id then
-			local co=self:coroutineGet(runningdrag)
-			if co and co.paused then
-				self:coroutineRestart(runningdrag)
+			if not draggables[mousefocus] then
+				self:SecureHookScript(mousefocus,"OnDragStart","Pickup")
+				mousefocus:RegisterForDrag("LeftButton")
+				draggables[mousefocus]=true
 			end
 			currentID=id
 			tip:AddLine(me,C.Orange())
@@ -2161,10 +2018,11 @@ function addon:attachItemTooltip(tip,link,...)
 	end
 end
 function addon:Pickup(itemid)
-	print(currentID,GetCursorInfo(),itemid)
-	if currentID and not GetCursorInfo() then
-		print(currentID)
-		PickupItem(currentID)
+	if mcf:IsVisible() and mcf.selectedTab==INEED then
+		if currentID and not GetCursorInfo() then
+			print(currentID)
+			PickupItem(currentID)
+		end
 	end
 end
 
@@ -2180,5 +2038,4 @@ _G.MCOUNT=Count
 -- Key Bindings Names
 _G.BINDING_HEADER_MAILCOMMANDER="MailCommander"
 _G.BINDING_NAME_MCConfig=L["Requests Configuration"]
-_G.BINDING_NAME_MCPickup=L["Pickup an item to be added to need list"]
 

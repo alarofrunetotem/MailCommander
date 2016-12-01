@@ -14,7 +14,7 @@ Feature: The add button is now always shown on the first page
 Fix: no longer count equipped bags as sendable items
 Fix: actually run sync scan when opening panels
 Feature: Costly operations moved to coroutine
-Fix: Restored drag and drop from some tradeskill windows
+Fix: Restored drag and drop from from tradeskill windows
 Fix: Workaround to skip Blizzard confirmation when sending mail to toons on the same realm
 ]])
 

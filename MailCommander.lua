@@ -24,6 +24,7 @@ local math=math
 local tContains=tContains
 local toc=select(4,GetBuildInfo())
 local db
+local currentID
 local bagCache={}
 local fakeLdb={
 	type = "data source",
@@ -778,6 +779,7 @@ end
 function addon:dragManage(tip)
 	print("tooltip shown")
 	if CursorHasItem() then return end
+	if true then return end
 	local frame=tip:GetOwner()
 	if mcf:IsShown() and currentTab==INEED then
 		if not self:IsHooked(frame,"OnDragStart") then self:SecureHookScript(frame,"OnDragStart","dragStart") end
@@ -798,7 +800,6 @@ function addon:OnInitialized()
 	end
 	self.Count=Count
 	self.db.RegisterCallback(self,'OnDatabaseShutdown')
-	DevTools_Dump(self.db:GetNamespace(realmkey,true))
 	self.namespace=self.db:RegisterNamespace(realmkey,dbDefaults)
 	db=self.db:GetNamespace(realmkey).global
 --@debug@
@@ -863,11 +864,31 @@ function addon:OnInitialized()
 	self:SecureHookScript(_G.InboxFrame,"OnHide",print)
 	--@end-debug@
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
+	self:SetAdditional()
 	self.xdb=db
-	MailCommanderFrameAdditional.Name:SetText(L["Temporary slot"])
-	MailCommanderFrameAdditional.MailCommanderDragTarget=true
+	self:loadHelp()
+	return --true
+end
+function addon:SetAdditional(itemLink)
+	local f=MailCommanderFrameAdditional
+	local itemButton=f.ItemButton
+	if itemLink then
+		itemButton.MailCommanderDragTarget=true
+		itemButton:SetAttribute("itemlink",itemLink)
+		SetItemButtonTexture(itemButton,GetItemIcon(itemLink))
+		f.Name:SetText(itemLink:gsub('[%]%[]',''))	
+	else
+		itemButton:SetAttribute("itemlink",nil)
+		SetItemButtonTexture(itemButton,nil)
+		f.Name:SetText(L["Temporary slot"])
+		f.MailCommanderDragTarget=true
+	end
+	 
+end
+function addon:StartTooltips()
 	print("Hooking tooltips")
 	self:SecureHookScript(_G.GameTooltip,"OnShow","dragManage")
+	self:SecureHookScript(_G.GameTooltip,"OnHide",function() print("tooltip close") currentID=nil end)
 	self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
 	self:SecureHookScript(_G.ItemRefTooltip,"OnTooltipSetItem", "attachItemTooltip")
 	self:SecureHookScript(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem", "attachItemTooltip")
@@ -876,15 +897,6 @@ function addon:OnInitialized()
 	self:SecureHookScript(_G.ShoppingTooltip2,"OnTooltipSetItem", "attachItemTooltip")
 	self:SecureHook(_G.ItemRefTooltip, "SetHyperlink", "attachItemTooltip")
 	self:SecureHook(_G.GameTooltip, "SetHyperlink", "attachItemTooltip")
-	
-	--@debug@
-	db.dbversion=db.dbversion -- Forcing Ace to save it
-	do
-		self:SecureHookScript(_G.GameTooltip,"OnShow","dragManage")
-	end
-	--@end-debug@
-	self:loadHelp()
-	return --true
 end
 function addon:OnDatabaseShutdown()
 	checkBags()
@@ -1694,6 +1706,18 @@ function addon:OnItemClicked(itemButton,button)
 			self:UpdateMailCommanderFrame()
 			return
 		end
+	elseif section=="drop" then
+		if button=="LeftButton" and not CursorHasItem() then 
+			local key=itemButton:GetAttribute('itemlink')
+			if key then
+				return PickupItem(key)
+			end
+		elseif button=="RightButton" then
+			return self:SetAdditional()
+		else
+			print("Che minchia di tasto e'?",button)
+		end
+		return
 	end
 	--@debug@
 	return self:Popup("Invalid section ".. tostring(section))
@@ -2009,31 +2033,28 @@ end
 function addon:OnItemDropped(itemButton)
 	dirty=true
 	local type,itemID,itemLink=GetCursorInfo()
-	ClearCursor()
-	if itemButton:GetName()=="MailCommanderFrameAdditionalItemButton" then
-		itemButton.MailCommanderDragTarget=true
-		itemButton:SetAttribute("itemlink",itemLink)
-		SetItemButtonTexture(itemButton,GetItemIcon(itemID))
-		itemButton:GetParent().Name:SetText(itemLink:gsub('[%]%[]',''))
+	local itemLink
+	--local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount,itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(itemID)
+	if type=="item" then
+		itemLink = select(2,GetItemInfo(itemID))
+	elseif type=="merchant" then
+		itemLink = GetMerchantItemLink(itemID)
+	else
 		return
 	end
 --@debug@
 	print("Dropped on ",itemButton:GetName(),type,itemID,itemLink)
 --@end-debug@
 	ClearCursor()
+	if itemButton:GetName()=="MailCommanderFrameAdditionalItemButton" then
+		self:SetAdditional(itemLink)
+		return
+	end
+	ClearCursor()
 	if currentTab==ISEND then return end
 	local toon=self:GetFilter()
 	if toon=='NONE' then return end
 	if mcf.selectedTab==INEED then
-		local itemLink
-		--local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount,itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(itemID)
-		if type=="item" then
-			itemLink = select(2,GetItemInfo(itemID))
-		elseif type=="merchant" then
-			itemLink = GetMerchantItemLink(itemID)
-		else
-			return
-		end
 		if (not I:IsBop(itemLink)) then
 			local itemID=self:GetItemID(itemLink)
 			--@debug@
@@ -2045,7 +2066,7 @@ function addon:OnItemDropped(itemButton)
 				end
 			end
 			local itemTexture=GetItemIcon(itemID)
-			tinsert(db.requests[toon],{t=itemTexture,l=itemLink,i=itemID})
+			tinsert(db.requests[toon],1,{t=itemTexture,l=itemLink,i=itemID})
 			self:RefreshSendable(true)
 			dirty=true
 		else
@@ -2063,16 +2084,33 @@ function addon:Reset(input,...)
 			function() end
 		)
 end
-local currentID
-function addon:attachItemTooltip(tip,link)
-	print("attached",link)
-	if not link and tip.GetItem then link=tip:GetItem() end
+function addon:attachItemTooltip(tip,link,...)
+	local trash
+	pp("Link 1 is",tip,link,...)
+	if link and not link:match("item:") then link=nil end
+	if not link and tip.GetItem then trash,link=tip:GetItem() end
+	pp("Link 2 is",tip,link,trash)
 	if link then 
-		currentID=addon:GetItemID(link)
-		print(currentID) 
-	 	PickupItem(currentID)
+		local type,id = link:match("(%a+):(%d+)")
+		pp(type,id)
+		if (id == "" or id == "0") and TradeSkillFrame ~= nil and TradeSkillFrame:IsVisible() and GetMouseFocus().reagentIndex then
+			local selectedRecipe = TradeSkillFrame.RecipeList:GetSelectedRecipeID()
+			for i = 1, 8 do
+				if GetMouseFocus().reagentIndex == i then
+				  id = C_TradeSkillUI.GetRecipeReagentItemLink(selectedRecipe, i):match("item:(%d+):") or nil
+				  break
+				end
+			end
+		end	
+		if id then
+			currentID=id
+			pp("FOUND",currentID)
+		else 
+			pp ("No id retrieved from",link)
+		end 
+	 	--PickupItem(currentID)
 	else
-		print("Unable to retrive itemid")
+		pp("Unable to retrive itemid")
 	 end
 end
 

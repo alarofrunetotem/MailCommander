@@ -2,4 +2,7 @@
 <Binding name="MCConfig" header="MAILCOMMANDER" category="ADDONS">
 	MailCommander:OpenConfig()
 </Binding>
+<Binding name="MCPickup"  category="ADDONS">
+	MailCommander:Pickup()
+</Binding>
 </Bindings>

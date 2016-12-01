@@ -25,6 +25,7 @@ local tContains=tContains
 local toc=select(4,GetBuildInfo())
 local db
 local currentID
+local runningdrag
 local bagCache={}
 local fakeLdb={
 	type = "data source",
@@ -735,57 +736,6 @@ function addon:ApplyMINLEVEL(value)
 	if MailCommanderFrame:IsVisible() then self:UpdateMailCommanderFrame() end
 
 end
-function addon:dragStart(frame,button)
-	print("DragStart",frame:GetName(),button)
-	local fname=frame:GetName()
-	if fname=="TradeSkillSkillIcon" then
-	--@debug@
-		print(GameTooltipTextLeft1:GetText(),TradeSkillFrame.selectedSkill,GetTradeSkillItemLink(TradeSkillFrame.selectedSkill))
-	--@end-debug@
-		PickupItem(addon:GetItemID(GetTradeSkillItemLink(TradeSkillFrame.selectedSkill)))
-	elseif fname and fname:find("TradeSkillReagent") then
---@debug@
-		print(GameTooltipTextLeft1:GetText(),TradeSkillFrame.selectedSkill,GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, frame:GetID()))
---@end-debug@
-		PickupItem(addon:GetItemID(GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, frame:GetID())))
-	else
-		local itemName, ItemLink = GameTooltip:GetItem();
-		--@debug@
-		print(GameTooltipTextLeft1:GetText(),itemName,ItemLink,GetItemInfo(GameTooltipTextLeft1:GetText()))
-		--@end-debug@
-		PickupItem(addon:GetItemID(GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, frame:GetID())))
-	end
-end
-function addon:dragStop(frame)
---@debug@
-	print("DragStop")
---@end-debug@
-	frame:RegisterForDrag()
-	frame:SetScript("OnDragStart",nil)
-	frame:SetScript("OnDragStop",nil)
-	local dest=GetMouseFocus()
---@debug@
-	if type(dest)=="table"  and dest.GetName then
-		print("Drag Stoppped on",dest:GetName())
-	end
---@end-debug@
-	if type(dest)=="table" and dest.MailCommanderDragTarget then
-		return
-	else
-		ClearCursor()
-	end
-
-end
-function addon:dragManage(tip)
-	print("tooltip shown")
-	if CursorHasItem() then return end
-	if true then return end
-	local frame=tip:GetOwner()
-	if mcf:IsShown() and currentTab==INEED then
-		if not self:IsHooked(frame,"OnDragStart") then self:SecureHookScript(frame,"OnDragStart","dragStart") end
-		if not self:IsHooked(frame,"OnDragStop") then self:SecureHookScript(frame,"OnDragStop","dragStop") end
-	end
-end
 function addon:OnEnabled()
 
 end
@@ -867,6 +817,7 @@ function addon:OnInitialized()
 	self:SetAdditional()
 	self.xdb=db
 	self:loadHelp()
+	SetBinding("SHIFT-P","MCPickup")
 	return --true
 end
 function addon:SetAdditional(itemLink)
@@ -885,18 +836,42 @@ function addon:SetAdditional(itemLink)
 	end
 	 
 end
+local hooked
+function addon:CloseDrag()
+	currentID=nil
+	self:coroutinePause(runningdrag)
+end
 function addon:StartTooltips()
-	print("Hooking tooltips")
-	self:SecureHookScript(_G.GameTooltip,"OnShow","dragManage")
-	self:SecureHookScript(_G.GameTooltip,"OnHide",function() print("tooltip close") currentID=nil end)
+	if hooked then return end
+	self:SecureHookScript(_G.GameTooltip,"OnHide","CloseDrag")
 	self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
-	self:SecureHookScript(_G.ItemRefTooltip,"OnTooltipSetItem", "attachItemTooltip")
-	self:SecureHookScript(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem", "attachItemTooltip")
-	self:SecureHookScript(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem", "attachItemTooltip")
-	self:SecureHookScript(_G.ShoppingTooltip1,"OnTooltipSetItem", "attachItemTooltip")
-	self:SecureHookScript(_G.ShoppingTooltip2,"OnTooltipSetItem", "attachItemTooltip")
-	self:SecureHook(_G.ItemRefTooltip, "SetHyperlink", "attachItemTooltip")
-	self:SecureHook(_G.GameTooltip, "SetHyperlink", "attachItemTooltip")
+	if not runningdrag then
+		runningdrag=self:coroutineExecute(0.05,"pseudoDrag")
+	else
+		runningdrag=self:coroutineRestart("pseudoDrag")
+	end
+--	self:SecureHookScript(_G.ItemRefTooltip,"OnTooltipSetItem", "a2")
+--	self:SecureHookScript(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem", "a3")
+--	self:SecureHookScript(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem", "a4")
+--	self:SecureHookScript(_G.ShoppingTooltip1,"OnTooltipSetItem", "a5")
+--	self:SecureHookScript(_G.ShoppingTooltip2,"OnTooltipSetItem", "a6")
+--	self:SecureHook(_G.ItemRefTooltip, "SetHyperlink", "a7")
+--	self:SecureHook(_G.GameTooltip, "SetHyperlink", "a8")
+	hooked=true
+end
+function addon:StopTooltips()
+	self:Unhook(_G.GameTooltip,"OnHide")
+	self:Unhook(_G.GameTooltip,"OnTooltipSetItem")
+--	self:Unhook(_G.ItemRefTooltip,"OnTooltipSetItem")
+--	self:Unhook(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem")
+--	self:Unhook(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem")
+--	self:Unhook(_G.ShoppingTooltip1,"OnTooltipSetItem")
+--	self:Unhook(_G.ShoppingTooltip2,"OnTooltipSetItem")
+--	self:Unhook(_G.ItemRefTooltip, "SetHyperlink")
+--	self:Unhook(_G.GameTooltip, "SetHyperlink")
+	print("Paused",runningDrag)
+	self:coroutinePause(runningdrag)
+	hooked=false
 end
 function addon:OnDatabaseShutdown()
 	checkBags()
@@ -1039,7 +1014,7 @@ function addon:RefreshSendable(sync)
   if sync then
     return self:doRefreshSendable()
   else
-    self:coroutineExecute(0.001,"doRefreshSendable")
+    self:coroutineExecute(0.01,"doRefreshSendable")
   end
 end
 function addon:doRefreshSendable(dbg)
@@ -1507,12 +1482,17 @@ function addon:xSearchItem(itemId)
 		end
 	end
 end
+function addon:Open(this)
+	if currentTab==INEED then
+		self:StartTooltips()
+	end
+end
 function addon:Close(this)
 	StackSplitFrame:Hide()
 	CloseAllBags(this)
 	wipe(sending)
 	wipe(tobesent)
-
+	self:StopTooltips()
 end
 function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
 	local needsplit
@@ -1707,11 +1687,13 @@ function addon:OnItemClicked(itemButton,button)
 			return
 		end
 	elseif section=="drop" then
-		if button=="LeftButton" and not CursorHasItem() then 
+		if button=="LeftButton" and not GetCursorInfo() then 
 			local key=itemButton:GetAttribute('itemlink')
 			if key then
 				return PickupItem(key)
 			end
+		elseif button=="LeftButton" then
+			self:OnItemDroppe(itemButton)
 		elseif button=="RightButton" then
 			return self:SetAdditional()
 		else
@@ -2011,6 +1993,11 @@ function addon:OnTabClick(tab)
 --@end-debug@
 	PanelTemplates_SetTab(mcf, tab:GetID())
 	currentTab=mcf.selectedTab
+	if currentTab==INEED then
+		self:StartTooltips()
+	else
+		self:StopTooltips()
+	end
 	self:UpdateMailCommanderFrame()
 end
 function addon:UpdateMailCommanderFrame()
@@ -2084,34 +2071,101 @@ function addon:Reset(input,...)
 			function() end
 		)
 end
+function addon:a1(tip,link)
+	print("a1")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a1(tip,link)
+	print("a1")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a2(tip,link)
+	print("a2")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a3(tip,link)
+	print("a3")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a4(tip,link)
+	print("a4")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a5(tip,link)
+	print("a5")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a6(tip,link)
+	print("a6")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a7(tip,link)
+	print("a7")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:a8(tip,link)
+	print("a8")
+	return self:attachItemTooltip(tip,link)
+end
+function addon:pseudoDrag()
+	local mousedown
+	local x,y=0,0
+	local oldx,oldy=0,0
+	while true do
+		if not GetCursorInfo() then
+			if mousedown then
+				mousedown=IsMouseButtonDown("LeftButton")
+				if mousedown then
+					x,y=GetCursorPosition()
+					if x~=oldx or y~=oldy then
+						x=oldx
+						y=oldy
+						self:Pickup(currentID)
+						self:coroutinePause(runningdrag)
+					end
+				end
+			else
+				mousedown=IsMouseButtonDown("LeftButton")
+				if mousedown then
+					oldx,oldy=GetCursorPosition()
+				end
+			end
+		end
+		coroutine.yield()												
+	end
+end
 function addon:attachItemTooltip(tip,link,...)
-	local trash
-	pp("Link 1 is",tip,link,...)
-	if link and not link:match("item:") then link=nil end
-	if not link and tip.GetItem then trash,link=tip:GetItem() end
-	pp("Link 2 is",tip,link,trash)
+	if not link and tip.GetItem then link=select(2,tip:GetItem()) end
 	if link then 
-		local type,id = link:match("(%a+):(%d+)")
-		pp(type,id)
-		if (id == "" or id == "0") and TradeSkillFrame ~= nil and TradeSkillFrame:IsVisible() and GetMouseFocus().reagentIndex then
+		local type,id = link:match("H(%a+):(%d*):")
+		local mousefocus=GetMouseFocus()
+		if (id == "" or id == "0") and TradeSkillFrame ~= nil and TradeSkillFrame:IsVisible() and mousefocus.reagentIndex then
 			local selectedRecipe = TradeSkillFrame.RecipeList:GetSelectedRecipeID()
 			for i = 1, 8 do
-				if GetMouseFocus().reagentIndex == i then
+				if mousefocus.reagentIndex == i then
 				  id = C_TradeSkillUI.GetRecipeReagentItemLink(selectedRecipe, i):match("item:(%d+):") or nil
 				  break
 				end
 			end
 		end	
 		if id then
+			local co=self:coroutineGet(runningdrag)
+			if co and co.paused then
+				self:coroutineRestart(runningdrag)
+			end
 			currentID=id
-			pp("FOUND",currentID)
-		else 
-			pp ("No id retrieved from",link)
+			tip:AddLine(me,C.Orange())
+			tip:AddLine(GetBindingText(GetBindingKey("MCPickup")) .. " to pickup",C.Green())
+			tip:Show()
 		end 
-	 	--PickupItem(currentID)
-	else
-		pp("Unable to retrive itemid")
-	 end
+	end
+end
+function addon:Pickup(itemid)
+	print(currentID,GetCursorInfo(),itemid)
+	if currentID and not GetCursorInfo() then
+		print(currentID)
+		PickupItem(currentID)
+	end
 end
 
 _G.MailCommander=addon
@@ -2126,3 +2180,5 @@ _G.MCOUNT=Count
 -- Key Bindings Names
 _G.BINDING_HEADER_MAILCOMMANDER="MailCommander"
 _G.BINDING_NAME_MCConfig=L["Requests Configuration"]
+_G.BINDING_NAME_MCPickup=L["Pickup an item to be added to need list"]
+

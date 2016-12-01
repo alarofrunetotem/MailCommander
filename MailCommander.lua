@@ -752,6 +752,7 @@ function addon:dragStart(frame,button)
 		--@debug@
 		print(GameTooltipTextLeft1:GetText(),itemName,ItemLink,GetItemInfo(GameTooltipTextLeft1:GetText()))
 		--@end-debug@
+		PickupItem(addon:GetItemID(GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, frame:GetID())))
 	end
 end
 function addon:dragStop(frame)
@@ -775,6 +776,7 @@ function addon:dragStop(frame)
 
 end
 function addon:dragManage(tip)
+	print("tooltip shown")
 	if CursorHasItem() then return end
 	local frame=tip:GetOwner()
 	if mcf:IsShown() and currentTab==INEED then
@@ -839,11 +841,11 @@ function addon:OnInitialized()
 	self:RegisterEvent("MAIL_SEND_MONEY_CHANGED","MailEvent")
 	self:RegisterEvent("MAIL_LOCK_SEND_ITEMS","MailEvent")
 	self:RegisterEvent("BAG_UPDATE_DELAYED")
-  self:RegisterEvent("LOOT_OPENED")
-  self:RegisterEvent("LOOT_CLOSED")
+	self:RegisterEvent("LOOT_OPENED")
+	self:RegisterEvent("LOOT_CLOSED")
 	self:RegisterEvent("CHAT_MSG_CURRENCY")
-  self:RegisterEvent("CHAT_MSG_LOOT")
-  self:RegisterEvent("PLAYER_MONEY")
+	self:RegisterEvent("CHAT_MSG_LOOT")
+	self:RegisterEvent("PLAYER_MONEY")
 	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED','TRADE_SKILL_UPDATE'},5,'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
@@ -864,6 +866,17 @@ function addon:OnInitialized()
 	self.xdb=db
 	MailCommanderFrameAdditional.Name:SetText(L["Temporary slot"])
 	MailCommanderFrameAdditional.MailCommanderDragTarget=true
+	print("Hooking tooltips")
+	self:SecureHookScript(_G.GameTooltip,"OnShow","dragManage")
+	self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
+	self:SecureHookScript(_G.ItemRefTooltip,"OnTooltipSetItem", "attachItemTooltip")
+	self:SecureHookScript(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem", "attachItemTooltip")
+	self:SecureHookScript(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem", "attachItemTooltip")
+	self:SecureHookScript(_G.ShoppingTooltip1,"OnTooltipSetItem", "attachItemTooltip")
+	self:SecureHookScript(_G.ShoppingTooltip2,"OnTooltipSetItem", "attachItemTooltip")
+	self:SecureHook(_G.ItemRefTooltip, "SetHyperlink", "attachItemTooltip")
+	self:SecureHook(_G.GameTooltip, "SetHyperlink", "attachItemTooltip")
+	
 	--@debug@
 	db.dbversion=db.dbversion -- Forcing Ace to save it
 	do
@@ -2049,6 +2062,18 @@ function addon:Reset(input,...)
 			end,
 			function() end
 		)
+end
+local currentID
+function addon:attachItemTooltip(tip,link)
+	print("attached",link)
+	if not link and tip.GetItem then link=tip:GetItem() end
+	if link then 
+		currentID=addon:GetItemID(link)
+		print(currentID) 
+	 	PickupItem(currentID)
+	else
+		print("Unable to retrive itemid")
+	 end
 end
 
 _G.MailCommander=addon

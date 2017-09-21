@@ -9,6 +9,9 @@ Mail Commander allows you to define a per character list of needs which wil be d
 You can make this selection permament, disabling some kind of items, or just cherry pick each time
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
+self:RelNotes(0,9,1,[[
+Update: Updated boa tokens with 7.3 data
+]])
 self:RelNotes(0,9,0,[[
 Feature: The add button is now always shown on the first page
 Fix: no longer count equipped bags as sendable items

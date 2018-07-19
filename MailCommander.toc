@@ -1,4 +1,4 @@
-## Interface: 70300
+## Interface: 80000
 ## Title: MailCommander
 ## Notes: Manages items distribution between multiple toons
 ## Notes-itIT: Gestisce la distribuzione di oggetti fra personaggi multipli

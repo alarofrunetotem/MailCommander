@@ -1,6 +1,6 @@
 local me,ns = ...
 
-ns.wowhead_update=1505984567
+ns.wowhead_update=1505985201
 -- Classes masks
 ns.classes=
 {

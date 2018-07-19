@@ -782,8 +782,8 @@ function addon:OnInitialized()
 	self:RegisterEvent("MAIL_LOCK_SEND_ITEMS","MailEvent")
 	self:RegisterEvent("MAIL_UNLOCK_SEND_ITEMS","MailEvent")
 	self:RegisterEvent("MAIL_SEND_INFO_UPDATE","MailEvent")
-	self:RegisterEvent("MAIL_SEND_COD_CHANGED","MailEvent")
-	self:RegisterEvent("MAIL_SEND_MONEY_CHANGED","MailEvent")
+	--self:RegisterEvent("MAIL_SEND_COD_CHANGED","MailEvent")
+	--self:RegisterEvent("MAIL_SEND_MONEY_CHANGED","MailEvent")
 	self:RegisterEvent("MAIL_LOCK_SEND_ITEMS","MailEvent")
 	self:RegisterEvent("BAG_UPDATE_DELAYED")
 	self:RegisterEvent("LOOT_OPENED")
@@ -791,7 +791,8 @@ function addon:OnInitialized()
 	self:RegisterEvent("CHAT_MSG_CURRENCY")
 	self:RegisterEvent("CHAT_MSG_LOOT")
 	self:RegisterEvent("PLAYER_MONEY")
-	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED','TRADE_SKILL_UPDATE'},5,'TRADE_SKILL_UPDATE')
+	-- ,'TRADE_SKILL_UPDATE'
+	self:RegisterBucketEvent({'PLAYER_SPECIALIZATION_CHANGED'},5,'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 	self:SecureHookScript(_G.SendMailFrame,"OnShow","OpenSender")
 	self:SecureHookScript(_G.SendMailFrame,"OnHide","CloseChooser")
@@ -818,14 +819,14 @@ function addon:SetAdditional(itemLink)
 		itemButton.MailCommanderDragTarget=true
 		itemButton:SetAttribute("itemlink",itemLink)
 		SetItemButtonTexture(itemButton,GetItemIcon(itemLink))
-		f.Name:SetText(itemLink:gsub('[%]%[]',''))	
+		f.Name:SetText(itemLink:gsub('[%]%[]',''))
 	else
 		itemButton:SetAttribute("itemlink",nil)
 		SetItemButtonTexture(itemButton,nil)
 		f.Name:SetText(L["Temporary slot"])
 		f.MailCommanderDragTarget=true
 	end
-	 
+
 end
 local hooked
 function addon:CloseDrag()
@@ -1605,7 +1606,7 @@ function addon:OnItemClicked(itemButton,button)
 			return
 		end
 	elseif section=="drop" then
-		if button=="LeftButton" and not GetCursorInfo() then 
+		if button=="LeftButton" and not GetCursorInfo() then
 			local key=itemButton:GetAttribute('itemlink')
 			if key then
 				return PickupItem(key)
@@ -1992,7 +1993,7 @@ end
 local draggables={}
 function addon:attachItemTooltip(tip,link,...)
 	if not link and tip.GetItem then link=select(2,tip:GetItem()) end
-	if link then 
+	if link then
 		local type,id = link:match("H(%a+):(%d*):")
 		local mousefocus=GetMouseFocus()
 		if (id == "" or id == "0") and TradeSkillFrame ~= nil and TradeSkillFrame:IsVisible() and mousefocus.reagentIndex then
@@ -2003,7 +2004,7 @@ function addon:attachItemTooltip(tip,link,...)
 				  break
 				end
 			end
-		end	
+		end
 		if id then
 			if not draggables[mousefocus] then
 				self:SecureHookScript(mousefocus,"OnDragStart","Pickup")
@@ -2014,7 +2015,7 @@ function addon:attachItemTooltip(tip,link,...)
 			tip:AddLine(me,C.Orange())
 			tip:AddLine(GetBindingText(GetBindingKey("MCPickup")) .. " to pickup",C.Green())
 			tip:Show()
-		end 
+		end
 	end
 end
 function addon:Pickup(itemid)

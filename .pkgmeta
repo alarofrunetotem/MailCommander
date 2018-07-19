@@ -16,10 +16,10 @@ externals:
 		tag: latest
 
 	libs/LibItemUpgradeInfo-1.0:
-		url: git://git.wowace.com/wow/libitemupgradeinfo-1-0/mainline.git
+		url:  https://repos.wowace.com/wow/libitemupgradeinfo-1-0
 
 	libs/LibDBIcon-1.0:
-		url: svn://svn.wowace.com/wow/libdbicon-1-0/mainline/trunk/LibDBIcon-1.0
+		url: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
 
 ignore:
 - .buildpath

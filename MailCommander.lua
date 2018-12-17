@@ -1701,12 +1701,14 @@ local function ShowSplitter(key,toon,itemButton,itemId,r,g,b)
 	itemButton.SplitStack=SplitFunc
 	itemButton.toon=toon
 	itemButton.key=data
+  local StackSplitFrame=StackSplitFrame
+  local StackSplitText=StackSplitFrame.StackSplitText
 	StackSplitText:SetText(StackSplitFrame.split);
-	OpenStackSplitFrame(99999,itemButton,"RIGHT","LEFT")
+	StackSplitFrame:OpenStackSplitFrame(99999,itemButton,"RIGHT","LEFT")
 	StackSplitFrame.split = db[data][toon][itemId] or 0
 	StackSplitText:SetText(StackSplitFrame.split);
 	StackSplitText:SetTextColor(r,g,b)
-	if StackSplitFrame.split > 0 then StackSplitLeftButton:Enable() end
+	if StackSplitFrame.split > 0 then StackSplitFrame.StackSplitLeftButton:Enable() end
 	MailCommanderSplitLabel.Text:SetTextColor(r,g,b)
 	MailCommanderSplitLabel.Text:SetText(toon .. "\n" .. msg)
 	MailCommanderSplitLabel:Show()

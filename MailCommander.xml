@@ -461,7 +461,7 @@
 		<Scripts>
 			<OnHide>
 				self:Hide()
-				StackSplitText:SetTextColor(1,1,1)
+				StackSplitFrame.StackSplitText:SetTextColor(1,1,1)
 			</OnHide>
 
 		</Scripts>

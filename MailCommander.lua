@@ -319,8 +319,9 @@ presets={ --#presets
 			local min=getProperty('keep',toon,'boe',0)
 			local max=getProperty('cap',toon,'boe',9999)
 			for bag,slot in Bags() do
+			  local loc=ItemLocation:CreateFromBagAndSlot(bag,slot)
 				local itemlink=GetContainerItemLink(bag,slot)
-				if itemlink and I:IsBoe(itemlink) then
+				if itemlink and I:IsBoe(itemlink)  and not C_Item.IsBound(loc) then
 					local level=I:GetUpgradedItemLevel(itemlink)
 					if level>=min and level<=max then
 						count=count+1
@@ -331,7 +332,8 @@ presets={ --#presets
 		end,
 		validate=function (_,bagItemId,toon,bagId,slotId)
 			local itemlink=GetContainerItemLink(bagId,slotId)
-			if itemlink and I:IsBoe(itemlink) then
+      local loc=ItemLocation:CreateFromBagAndSlot(bagId,slotId)
+      if itemlink and I:IsBoe(itemlink)  and not C_Item.IsBound(loc) then
 				if Count:CanSendMail(toon) then
 					local min=getProperty('keep',toon,'boe',0)
 					local max=getProperty('cap',toon,'boe',9999)

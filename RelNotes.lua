@@ -9,6 +9,9 @@ Mail Commander allows you to define a per character list of needs which wil be d
 You can make this selection permament, disabling some kind of items, or just cherry pick each time
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
+self:RelNotes(1,0,1,[[
+Feature: 8.3.0
+]])
 self:RelNotes(1,0,0,[[
 Feature: 8.2.5
 Fix: long standing bug, was trying to send bound bind on equip items

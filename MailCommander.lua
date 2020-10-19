@@ -600,7 +600,7 @@ local function AddButton(i,data,section)
 			frame.ItemButton.Disabled:Hide()
 			SetItemCounts(frame,false)
 			if type(data) =='nil' then
-				frame.Name:SetText(L["Drag here do add an item"])
+				frame.Name:SetText(L["Drag here to add an item"])
 				frame.ItemButton.MailCommanderDragTarget=true
 			else
 				frame:Hide()
@@ -1158,8 +1158,8 @@ function addon:RenderCategoryBox()
 	mcf.Filter:Hide()
 	mcf.Info:Show()
 	mcf.Info:SetText("Coming soon!")
-	mcf.Info:SetTextColor(C:Orane())
-	mcf.NameText:SetText(L["Items categories"])
+	mcf.Info:SetTextColor(C:Orange())
+	mcf.NameText:SetText(L["Item categories"])
 	mcf:SetAttribute("section","categories")
 	self:RenderButtonList(db.categories)
 end
@@ -1582,7 +1582,7 @@ function addon:DumpToon(toon,id)
 end
 function addon:CanSendMail()
 	if not SendMailFrame:IsVisible() then
-		self:Popup(L["Please, open mailbox before attempting to send"])
+		self:Popup(L["Please open mailbox before attempting to send"])
 		return false
 	end
 	return true
@@ -1710,7 +1710,7 @@ local function ShowSplitter(key,toon,itemButton,itemId,r,g,b)
 	StackSplitFrame.split = db[data][toon][itemId] or 0
 	StackSplitText:SetText(StackSplitFrame.split);
 	StackSplitText:SetTextColor(r,g,b)
-	if StackSplitFrame.split > 0 then StackSplitFrame.StackSplitLeftButton:Enable() end
+	if StackSplitFrame.split > 0 then StackSplitFrame.LeftButton:Enable() end
 	MailCommanderSplitLabel.Text:SetTextColor(r,g,b)
 	MailCommanderSplitLabel.Text:SetText(toon .. "\n" .. msg)
 	MailCommanderSplitLabel:Show()

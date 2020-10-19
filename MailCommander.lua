@@ -1,17 +1,17 @@
 local __FILE__=tostring(debugstack(1,2,0):match("(.*):1:")) -- Always check line number in regexp and file
 local me,ns=...
 local pp=print
---@debug@
+--[===[@debug@
 --Postal_BlackBookButton
 -- SendMailNameEditBox
 LoadAddOn("Blizzard_DebugTools")
 LoadAddOn("LibDebug")
 if LibDebug then LibDebug() end
---@end-debug@
---[===[@non-debug@
+--@end-debug@]===]
+--@non-debug@
 local print=function() end
 local DevTools_Dump=function() end
---@end-non-debug@]===]
+--@end-non-debug@
 local addon --#MailCommander
 local LibInit,minor=LibStub("LibInit",true)
 assert(LibInit,me .. ": Missing LibInit, please reinstall")
@@ -600,7 +600,7 @@ local function AddButton(i,data,section)
 			frame.ItemButton.Disabled:Hide()
 			SetItemCounts(frame,false)
 			if type(data) =='nil' then
-				frame.Name:SetText(L["Drag here do add an item"])
+				frame.Name:SetText(L["Drag here to add an item"])
 				frame.ItemButton.MailCommanderDragTarget=true
 			else
 				frame:Hide()
@@ -766,14 +766,14 @@ function addon:OnInitialized()
 	--self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:AddBoolean("ALLSEND",false,format(L["Show all characters in %s tab"],SEND),L["Show all toons regardless if they have items to send or not"])
 	self:AddBoolean("ALLFACTIONS",false,L["Show characters from both factions"],L["Show all toons fromj all factions"])
---@debug@
+--[===[@debug@
 	self:AddBoolean("ALLREALMS",false,L["Show characters from all realms"],L["Show all toons from all realms"]).disabled=true
---@end-debug@
+--@end-debug@]===]
 	self:AddLabel(L["Data management"])
 	self:AddAction("reset","Reset",L["Erase all stored data"])
---@debug@
+--[===[@debug@
 	self:AddBoolean("DRY",false,"Disable mail sending")
---@end-debug@
+--@end-debug@]===]
 
 	self:ScheduleTimer("InitData",0.2)
 	self:RegisterEvent("PLAYER_LEVEL_UP")
@@ -801,12 +801,12 @@ function addon:OnInitialized()
 	SendMailMailButton:SetScript("PreClick",function()
 		mailRecipient=SendMailNameEditBox:GetText()
 	end)
-	--@debug@
+	--[===[@debug@
 	self:RegisterEvent("MAIL_INBOX_UPDATE","MailEvent")
 	self:RegisterEvent("UPDATE_PENDING_MAIL","MailEvent")
 	self:SecureHookScript(_G.InboxFrame,"OnShow",print)
 	self:SecureHookScript(_G.InboxFrame,"OnHide",print)
-	--@end-debug@
+	--@end-debug@]===]
 	mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
 	self:SetAdditional()
 	self.xdb=db
@@ -1158,8 +1158,8 @@ function addon:RenderCategoryBox()
 	mcf.Filter:Hide()
 	mcf.Info:Show()
 	mcf.Info:SetText("Coming soon!")
-	mcf.Info:SetTextColor(C:Orane())
-	mcf.NameText:SetText(L["Items categories"])
+	mcf.Info:SetTextColor(C:Orange())
+	mcf.NameText:SetText(L["Item categories"])
 	mcf:SetAttribute("section","categories")
 	self:RenderButtonList(db.categories)
 end
@@ -1582,7 +1582,7 @@ function addon:DumpToon(toon,id)
 end
 function addon:CanSendMail()
 	if not SendMailFrame:IsVisible() then
-		self:Popup(L["Please, open mailbox before attempting to send"])
+		self:Popup(L["Please open mailbox before attempting to send"])
 		return false
 	end
 	return true
@@ -1622,9 +1622,9 @@ function addon:OnItemClicked(itemButton,button)
 		end
 		return
 	end
-	--@debug@
+	--[===[@debug@
 	return self:Popup("Invalid section ".. tostring(section))
-	--@end-debug@
+	--@end-debug@]===]
 end
 function addon:ClickedOnToon(itemButton,button)
 	local name=itemButton:GetAttribute("toon")
@@ -1710,7 +1710,7 @@ local function ShowSplitter(key,toon,itemButton,itemId,r,g,b)
 	StackSplitFrame.split = db[data][toon][itemId] or 0
 	StackSplitText:SetText(StackSplitFrame.split);
 	StackSplitText:SetTextColor(r,g,b)
-	if StackSplitFrame.split > 0 then StackSplitFrame.StackSplitLeftButton:Enable() end
+	if StackSplitFrame.split > 0 then StackSplitFrame.LeftButton:Enable() end
 	MailCommanderSplitLabel.Text:SetTextColor(r,g,b)
 	MailCommanderSplitLabel.Text:SetText(toon .. "\n" .. msg)
 	MailCommanderSplitLabel:Show()
@@ -1766,9 +1766,9 @@ function addon:ClickedOnItem(itemButton,button,section)
 				end
 				return self:OnItemEnter(itemButton,button)
 			else
-			--@debug@
+			--[===[@debug@
 			print("Error:",itemId,currentRequester)
-			--@end-debug@
+			--@end-debug@]===]
 			end
 		elseif button=="RightButton" then
 			for i,d in pairs(db.requests[currentRequester]) do
@@ -1845,11 +1845,11 @@ function addon:OnItemEnter(itemButton,motion)
 			else
 				GameTooltip:AddDoubleLine("Sendable:",qt,nil,nil,nil,C:White())
 			end
---@debug@
+--[===[@debug@
 			GameTooltip:AddDoubleLine("Id:",itemId)
 			GameTooltip:AddDoubleLine("Sending:",sending[itemId])
 			GameTooltip:AddDoubleLine("Tobesent:",tobesent[itemId])
---@end-debug@
+--@end-debug@]===]
 		else
 			GameTooltip:SetText(L["Dragging an item here will add it to the list"])
 		end
@@ -1903,9 +1903,9 @@ function addon:UpdateMailCommanderFrame()
 	elseif mcf.selectedTab==ICATEGORIES then
 		addon:RenderCategoryBox(mcf)
 	else
---@debug@
+--[===[@debug@
 		print("Invalid tab",mcf.selectedTab)
---@end-debug@
+--@end-debug@]===]
 		return
 	end
 	self:InitializeDropDown(mcf.filter)
@@ -2032,13 +2032,13 @@ function addon:Pickup(itemid)
 end
 
 _G.MailCommander=addon
---@debug@
+--[===[@debug@
 _G.MCOM=addon
 _G.MCOM.sendable=sendable
 _G.MCOM.toonTable=toonTable
 _G.MCOUNT=Count
 
---@end-debug@
+--@end-debug@]===]
 
 -- Key Bindings Names
 _G.BINDING_HEADER_MAILCOMMANDER="MailCommander"

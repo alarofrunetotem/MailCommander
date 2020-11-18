@@ -762,7 +762,7 @@ function addon:OnInitialized()
 	self:AddBoolean("MAILBODY",false,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
 	self:AddBoolean("BAGS",true,L["Switch bags with MailCommander"],L["Automatically opens and closes bags with MailCommander frame"])
 	self:AddLabel(L["Character selection"])
-	self:AddSlider("MINLEVEL",30,1,50,L["Characters minimum level"],L["Only consider characters above this level"])
+	self:AddSlider("MINLEVEL",30,1,GetMaxLevelForPlayerExpansion(),L["Characters minimum level"],L["Only consider characters above this level"])
 	--self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:AddBoolean("ALLSEND",false,format(L["Show all characters in %s tab"],SEND),L["Show all toons regardless if they have items to send or not"])
 	self:AddBoolean("ALLFACTIONS",false,L["Show characters from both factions"],L["Show all toons fromj all factions"])
@@ -812,6 +812,9 @@ function addon:OnInitialized()
 	self.xdb=db
 	self:loadHelp()
 	SetBinding("SHIFT-P","MCPickup")
+	if self:GetNumber("MINLEVEL")> GetMaxLevelForPlayerExpansion() then
+	   self:SetVar("MINLEVEL",GetMaxLevelForPlayerExpansion()-10)
+	end
 	return --true
 end
 function addon:SetAdditional(itemLink)

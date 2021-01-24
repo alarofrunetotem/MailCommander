@@ -9,6 +9,10 @@ Mail Commander allows you to define a per character list of needs which wil be d
 You can make this selection permament, disabling some kind of items, or just cherry pick each time
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
+self:RelNotes(1,1,3,[[
+Feature: 9.0.2
+Fix: Temporary disabled DataStore support (waiting for a stable version of it)
+]])
 self:RelNotes(1,0,1,[[
 Feature: 8.3.0
 ]])

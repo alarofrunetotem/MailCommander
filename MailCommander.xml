@@ -178,9 +178,9 @@
 		</Layers>
 		<Frames>
 			<Button parentKey="Help" inherits="MainMenuBarMicroButton" hidden="false">
-				<Size x="32" y="64" />
+				<Size x="32" y="32" />
 				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPRIGHT" x="0" y="26"/>
+					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPRIGHT" x="0" y="0"/>
 				</Anchors>
 				<Scripts>
 					<OnEnter>
@@ -193,7 +193,7 @@
 						MailCommander:CloseTip()
 					</OnLeave>
 					<OnLoad>
-						LoadMicroButtonTextures(self, "Help");
+						LoadMicroButtonTextures(self, "MainMenu");
 					</OnLoad>
 				</Scripts>
 			</Button>

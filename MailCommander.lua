@@ -25,6 +25,7 @@ local tContains=tContains
 local toc=select(4,GetBuildInfo())
 local db
 local currentID
+local maxLevel
 local bagCache={}
 local fakeLdb={
 	type = "data source",
@@ -82,6 +83,7 @@ local dbDefaults={
 local presets
 --local pseudolink="|cff9d9d9d|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
 local pseudolink="|cffffd200|Hitem:%s:0:0:0:0:0:0:0:80:0|h[%s]|h|r"
+local QUESTIONMARK_ICON="Interface\\ICONS\\inv_misc_questionmark"
 local mailRecipient
 local slots=16
 local mcf
@@ -543,7 +545,10 @@ end
 local function IsIgnored(toon,ignorelevel)
 	if not toon then return false end
 	if toon == thisToon then return false end
-	return db.ignored[toon] or (not ignorelevel and addon:GetNumber("MINLEVEL") > toonTable[toon].level)
+	if not toonTable[toon].level then
+	 addon:BrokenToon(toon)
+	end
+	return db.ignored[toon] or (not ignorelevel and addon:GetNumber("MINLEVEL") > (toonTable[toon].level or 60))
 end
 local function AddButton(i,data,section)
 	local hide=type(data)=='boolean' and not data
@@ -619,7 +624,13 @@ local function AddButton(i,data,section)
 			frame.ItemButton.Disabled:Hide()
 		end
 		frame.Name:SetText(data.text)
-		SetItemButtonTexture(frame.ItemButton,"Interface\\ICONS\\ClassIcon_"..data.class)
+		if data.class then
+  		SetItemButtonTexture(frame.ItemButton,"Interface\\ICONS\\ClassIcon_"..data.class)
+		else
+      SetItemButtonTexture(frame.ItemButton,QUESTIONMARK_ICON)
+      frame.Name:SetText(data.text .. C(L["Please login with this toon"],"Red"))
+      addon:BrokenToon(name)
+		end
 		SetItemCounts(frame,false)
 		frame:Show()
 		return 1
@@ -665,9 +676,12 @@ function addon:loadDropList()
 	wipe(toonIndex)
 	for name,data in pairs(db.toons) do
 		if not data.faction or data.faction==thisFaction or self:GetBoolean("ALLFACTIONS") then
+      if not data.level or not data.class or not data.localizedClass then
+        self:BrokenToon(name)
+      end
 			toonTable[name]={
 				text=data.class and format("|c%s%s (%s %d)|r",_G.RAID_CLASS_COLORS[data.class].colorStr,name,data.localizedClass,data.level) or name,
-				tooltip=(data.p1 and data.p1 .."\n" or "") .. (data.p2 and data.p2 .."\n" or ""),
+				tooltip=(data.p1 or "") .. (data.p2 or ""),
 				realm=data.realm,
 				level=data.level,
 				class=data.class,
@@ -679,11 +693,14 @@ function addon:loadDropList()
 	end
 	table.sort(toonIndex,toonSort)
 end
+function addon:BrokenToon(name)
+  self:Print("Data for " .. C(name,'Red') .. " not valid. Please log in with that toon so MailCommander can fix it")
+end
 function addon:InitData()
 	loadSelf()
 	currentRequester=thisToon
 	currentReceiver=db.lastReceiver or 'NONE'
-	if  _G.DataStore then
+	if  false and _G.DataStore then
 		local d=_G.DataStore
 		local delay=60*60*24*30 -- does not import old toons
 		local realmList=_G.DataStore:GetRealmsConnectedWith(thisRealm)
@@ -741,6 +758,7 @@ function addon:OnEnabled()
 
 end
 function addon:OnInitialized()
+  maxLevel=GetMaxLevelForPlayerExpansion()
 	checkBags()
 	-- AceDb does not support connected realms, so I am using a namespace
 	local realmkey=GetRealmName()
@@ -762,7 +780,7 @@ function addon:OnInitialized()
 	self:AddBoolean("MAILBODY",false,L["Fill mail body"],L["Fill mail body with a detailed list of sent item"])
 	self:AddBoolean("BAGS",true,L["Switch bags with MailCommander"],L["Automatically opens and closes bags with MailCommander frame"])
 	self:AddLabel(L["Character selection"])
-	self:AddSlider("MINLEVEL",30,1,GetMaxLevelForPlayerExpansion(),L["Characters minimum level"],L["Only consider characters above this level"])
+	self:AddSlider("MINLEVEL",30,1,maxLevel,L["Characters minimum level"],L["Only consider characters above this level"])
 	--self:AddOpenCmd("requests","OpenConfig",L["Open requests panel"])
 	self:AddBoolean("ALLSEND",false,format(L["Show all characters in %s tab"],SEND),L["Show all toons regardless if they have items to send or not"])
 	self:AddBoolean("ALLFACTIONS",false,L["Show characters from both factions"],L["Show all toons fromj all factions"])
@@ -812,8 +830,8 @@ function addon:OnInitialized()
 	self.xdb=db
 	self:loadHelp()
 	SetBinding("SHIFT-P","MCPickup")
-	if self:GetNumber("MINLEVEL")> GetMaxLevelForPlayerExpansion() then
-	   self:SetVar("MINLEVEL",GetMaxLevelForPlayerExpansion()-10)
+	if self:GetNumber("MINLEVEL")> maxLevel then
+	   self:SetVar("MINLEVEL",math.floor(maxLevel/10*8))
 	end
 	return --true
 end
@@ -1113,7 +1131,7 @@ function addon:RenderButtonList(store,page)
 		for _,data in pairs(store) do
 			if currentTab==INEED or
 				currentTab==ICATEGORIES or
-				(currentTab==IFILTER and toonTable[data].level >= self:GetNumber("MINLEVEL")) or
+				(currentTab==IFILTER and (toonTable[data].level or 60) >= self:GetNumber("MINLEVEL")) or
 				(currentTab==ISEND and (self:GetBoolean('ALLSEND') or Count:Sendable(data.i) >0)) then
 				if i>first then
 					if i > last then
@@ -1863,6 +1881,9 @@ function addon:OnItemEnter(itemButton,motion)
 			local color1=C.White
 			local color2=enabled and GREEN_FONT_COLOR or RED_FONT_COLOR
 			GameTooltip:AddLine(toonTable[name].text)
+			if not toonTable[name].level or not toonTable[name].class then
+        GameTooltip:AddLine(L["Missing information, please login this toon"],RED_FONT_COLOR.r,RED_FONT_COLOR.g,RED_FONT_COLOR.b)
+      end
 			GameTooltip:AddLine(toonTable[name].tooltip)
 			GameTooltip:AddDoubleLine(KEY_BUTTON1,enabled and DISABLE or ENABLE,color1.r,color1.g,color1.b,color2.r,color2.g,color2.b)
 			GameTooltip:AddLine(L["Disabled toons will not appear in any list"],C:Orange())

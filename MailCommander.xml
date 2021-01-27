@@ -141,10 +141,6 @@
 					<Anchor point="BOTTOMRIGHT" relativeKey="$parent.Bg" x="0" y="0" />
 				</Anchors>
 				<Scripts>
-					<OnEnter>
-						--print(self:GetParent().ItemButton:GetAttribute("itemlink"))
-						--print(self:GetParent().ItemButton:GetAttribute("section"))
-					</OnEnter>
 					<OnLEave>
 					</OnLEave>
 				</Scripts>
@@ -166,21 +162,38 @@
 						<Anchor point="BOTTOM" x="0" y="10"/>
 					</Anchors>
 				</FontString>
-				<FontString parentKey="Info" inherits="GameFontWhite" text="Placeholder" justifyH="CENTER">
-					<Size x="130" y="30"/>
+				<FontString parentKey="Info" inherits="GameFontWhite" text="Placeholder" justifyH="LEFT">
+					<Size x="110" y="30"/>
 					<Anchors>
 						<Anchor point="TOP" relativeKey="$parent" relativePoint="TOP" x="0" y="-20" />
-						<Anchor point="LEFT" x="0" y="0" />
-						<Anchor point="RIGHT" x="0" y="0" />
+						<Anchor point="LEFT" x="10" y="0" />
+						<Anchor point="RIGHT" x="-80" y="0" />
 					</Anchors>
 				</FontString>
 			</Layer>
 		</Layers>
 		<Frames>
-			<Button parentKey="Help" inherits="MainMenuBarMicroButton" hidden="false">
-				<Size x="32" y="64" />
+			<Frame parentKey="InfoClick" enableMouse="true" hidden="true">
 				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPRIGHT" x="0" y="26"/>
+					<Anchor point="TOPLEFT" relativeKey="$parent.Info" />
+					<Anchor point="BOTTOMRIGHT" relativeKey="$parent.Info" />
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						MailCommander:OnInfoEnter(self)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+					<OnMouseUp>
+						MailCommander:Gui()
+					</OnMouseUp>
+				</Scripts>
+			</Frame>
+			<Button parentKey="Help" inherits="MainMenuBarMicroButton" hidden="false">
+				<Size x="32" y="40" />
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPRIGHT" x="0" y="0"/>
 				</Anchors>
 				<Scripts>
 					<OnEnter>
@@ -193,11 +206,13 @@
 						MailCommander:CloseTip()
 					</OnLeave>
 					<OnLoad>
-						LoadMicroButtonTextures(self, "Help");
+						LoadMicroButtonTextures(self, "MainMenu");
+						self.tooltipText = "Tooltip"
+        				self.newbieText = "Newbie tooltip"
 					</OnLoad>
 				</Scripts>
 			</Button>
-			<Frame parentArray="Additional" name="$parentAdditional" inherits="MailCommanderItemTemplate">
+			<Frame parentArray="Additional" name="$parentAdditional" inherits="MailCommanderItemTemplate" hidden="true">
 				<KeyValues>
 					<KeyValue key="section" value="Drop" type="string"/>
 				</KeyValues>
@@ -215,6 +230,108 @@
 					<Anchor point="TOPLEFT" x="10" y="-60"/>
 				</Anchors>
 			</Frame>
+			<Frame parentKey="Filter" name="$parentFilter" inherits="UIDropDownMenuTemplate" enableMouse="true">
+
+				<Anchors>
+					<Anchor point="TOPLEFT" x="-10" y="-28"/>
+				</Anchors>
+			</Frame>
+			<Button parentKey="AddContact" inherits="UIPanelButtonTemplate" text="ADD" hidden="true">
+				<Size x="70" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt"  relativePoint="TOPRIGHT" x="-10" y="-25"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:ShowAddCustomToon()
+					</OnClick>
+					<OnEnter>
+						MailCommander:OnAddContactEnter(self)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+				</Scripts>
+			</Button>
+			<Button parentKey="AddCategory" inherits="UIPanelButtonTemplate" text="ADD" hidden="true">
+				<Size x="70" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt"  relativePoint="TOPRIGHT" x="-10" y="-25"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:ShowAddCategory()
+					</OnClick>
+					<OnEnter>
+						MailCommander:OnAddCategoryEnter(self)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+				</Scripts>
+			</Button>
+			<Button parentKey="RemoveCategory" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">
+				<Size x="70" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt"  relativePoint="TOPRIGHT"  x="-82" y="-25"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:ShowRemoveCategory()
+					</OnClick>
+					<OnEnter>
+						MailCommander:OnRemoveCategoryEnter(self)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+				</Scripts>
+			</Button>
+			<Button parentKey="Send"  inherits="UIPanelButtonTemplate" text="SEND_LABEL" hidden="true">
+				<Size x="100" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt"  relativePoint="TOPRIGHT" x="-55" y="-28"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:OnSendClick(self,button)
+					</OnClick>
+					<OnEnter>
+						MailCommander:OnSendEnter(self)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+				</Scripts>
+			</Button>
+			<CheckButton name="$parentAll" parentKey="All" inherits="ChatConfigSmallCheckButtonTemplate" text="ALL" hidden="true">
+				<Anchors>
+					<Anchor point="TOPRIGHT"  relativePoint="TOPRIGHT" x="-35" y="-33"/>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						self.func=function(self,value) MailCommander:OnAllClick(self,value) end
+						self.tooltip="Placeholder"
+					</OnLoad>
+				</Scripts>
+			</CheckButton>
+			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">
+				<Size x="130" y="30"/>
+				<Anchors>
+					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-10" y="-28"/>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						MailCommander:OnDeleteClick(self,button)
+					</OnClick>
+					<OnEnter>
+						MailCommander:OnDeleteEnter(self)
+					</OnEnter>
+					<OnLeave>
+						MailCommander:CloseTip()
+					</OnLeave>
+				</Scripts>
+			</Button>
 			<Button parentKey="PrevPageButton">
 				<Size x="32" y="32"/>
 				<Anchors>
@@ -347,70 +464,22 @@
 					</OnLoad>
 				</Scripts>
 			</Button>
-			<Frame parentKey="Filter" name="$parentFilter" inherits="UIDropDownMenuTemplate" enableMouse="true">
-				<Anchors>
-					<Anchor point="TOPLEFT" x="-10" y="-28"/>
-				</Anchors>
-			</Frame>
-			<Button parentKey="Send" inherits="UIPanelButtonTemplate" text="SEND_LABEL" hidden="true">
-				<Size x="100" y="30"/>
-				<Anchors>
-					<Anchor point="TOPRIGHt"  relativePoint="TOPRIGHT" x="-55" y="-28"/>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-						MailCommander:OnSendClick(self,button)
-					</OnClick>
-					<OnEnter>
-						MailCommander:OnSendEnter(self)
-					</OnEnter>
-					<OnLeave>
-						MailCommander:CloseTip()
-					</OnLeave>
-				</Scripts>
-			</Button>
-			<CheckButton name="$parentAll" parentKey="All" inherits="ChatConfigSmallCheckButtonTemplate" text="ALL" hidden="true">
-				<Anchors>
-					<Anchor point="TOPRIGHT"  relativePoint="TOPRIGHT" x="-35" y="-33"/>
-				</Anchors>
-				<Scripts>
-					<OnLoad>
-						self.func=function(self,value) MailCommander:OnAllClick(self,value) end
-						self.tooltip="Placeholder"
-					</OnLoad>
-				</Scripts>
-			</CheckButton>
-			<Button parentKey="Delete" inherits="UIPanelButtonTemplate" text="REMOVE" hidden="true">
-				<Size x="130" y="30"/>
-				<Anchors>
-					<Anchor point="TOPRIGHt" relativePoint="TOPRIGHT" x="-10" y="-28"/>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-						MailCommander:OnDeleteClick(self,button)
-					</OnClick>
-					<OnEnter>
-						MailCommander:OnDeleteEnter(self)
-					</OnEnter>
-					<OnLeave>
-						MailCommander:CloseTip()
-					</OnLeave>
-				</Scripts>
-			</Button>
+
 		</Frames>
 		<Scripts>
 			<OnLoad>
 				MailCommander:OnLoad(self)
 			</OnLoad>
-			<OnSHow>
+			<OnShow>
 				if not SendMailFrame:IsVisible() then
 					self.Send:Disable()
 				else
 					self.Send:Enable()
 				end
 				MailCommander:Open()
-			</OnSHow>
+			</OnShow>
 			<OnHide>
+				MailCommander:ResetPanel()
 				MailCommander:Close(self)
 			</OnHide>
 			<OnReceiveDrag>

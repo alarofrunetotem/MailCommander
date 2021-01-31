@@ -2948,7 +2948,7 @@ function addon:OnItemEnter(itemButton,motion)
   --@debug@
 	GameTooltip:AddDoubleLine("Section",section,C:Silver())
   GameTooltip:AddDoubleLine("Width",GameTooltip:GetWidth(),C:Silver())
-  --@emd-debug@
+  --@end-debug@
   GameTooltip:SetWidth(500)
 	GameTooltip:Show()
 end

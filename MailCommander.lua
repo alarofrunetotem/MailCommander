@@ -113,9 +113,9 @@ local INEED=1
 local ISEND=2
 local IFILTER=3
 local ICATEGORIES=4
-local currentRequester=NONAME
-local currentReceiver=NONAME
-local currentCategory=NONAME
+local currentRequester
+local currentReceiver
+local currentCategory
 local lastReceiver
 local thisFaction
 local thisRealm
@@ -836,7 +836,7 @@ function addon:loadToonList()
 		end
 	 end
 	end
-	db.toonTable=toonTable
+--	db.toonTable=nil
 	table.sort(toonIndex,toonSort)
   db.toonIndex=toonIndex
 end
@@ -846,7 +846,7 @@ function addon:InitData()
   self:Debug("Background initialization started",start)
 	self:loadSelf()
 	currentRequester=thisToon
-	currentReceiver=db.lastReceiver or NONAME
+	currentReceiver=db.lastReceiver
 	if  _G.DataStore  then
 		local d=_G.DataStore
 		local delay=60*60*24*30 -- does not import old toons
@@ -857,20 +857,29 @@ function addon:InitData()
 				name=name..'-'..realm
 				if name~=thisToon then -- Do not overwrite current data with (possibly) stale data
 					if d:IsEnabled("DataStore_Characters") then
-						--self:Print(name,d:GetCharacterFaction(key))
-						--self:Print(name,d:GetCharacterLevel(key))
-						--self:Print(name,d:GetCharacterClass(key))
-						if d:IsEnabled("DataStore_Crafts") then
-							local l,_,_,n=d:GetProfession1(key)
-							if l and l>0 then
-								--self:Print(format("%s (%d)",n,l))
-							end
-							local l,_,_,n=d:GetProfession2(key)
-							if l and l>0 then
-								--self:Print(format("%s (%d)",n,l))
-							end
-						end
-						if coroutine.running() then coroutine.yield() end
+            local faction=d:GetCharacterFaction(key)
+            local level=d:GetCharacterLevel(key)
+            local localizedClass,class=d:GetCharacterClass(key)
+            local p1,p2
+            if d:IsEnabled("DataStore_Crafts") then
+            	local l,_,_,n=d:GetProfession1(key)
+            	if l and l>0 then
+            		p1=format("%s (%d)",n,l)
+            	end
+            	local l,_,_,n=d:GetProfession2(key)
+            	if l and l>0 then
+                p2=format("%s (%d)",n,l)
+            	end
+            end
+            if not db.toons[name] then db.toons[name]={} end
+            if faction then db.toons[name].faction=faction end
+            if localizedClass then db.toons[name].localizedClass=localizedClass end
+            if class then db.toons[name].class=class end
+            if level then db.toons[name].level=level end
+            if p1 then db.toons[name].p1=p1 end
+            if p2 then db.toons[name].p2=p2 end
+            db.toons[name].realm=realm
+            if coroutine.running() then coroutine.yield() end
 					end
 				end
 			end
@@ -912,6 +921,7 @@ function addon:InitData()
   self:SecureHookScript(_G.InboxFrame,"OnHide",print)
   --@end-debug@
   mcf=CreateFrame("Frame","MailCommanderFrame",UIParent,"MailCommander")
+  mcf.HookOpenAllBags=function(self,...) print("MCFHOOK",self,...) end
   self:SetAdditional()
   self.xdb=db
   self:loadHelp()
@@ -1251,7 +1261,11 @@ function addon:CheckTab(event)
 	end
 end
 function addon:OpenConfig(tab)
-	if self:GetBoolean("BAGS") then OpenAllBags(mcf) end
+	if self:GetBoolean("BAGS") then
+	 self:Print("Opening all bags")
+	 OpenAllBags(mcf)
+   self:Print("Opened all bags")
+  end
 	mcf:SetParent(UIParent)
 	mcf:ClearAllPoints()
 	mcf:SetPoint("CENTER")
@@ -1318,8 +1332,8 @@ function addon:GetFilter()
 				currentReceiver=nil
 			end
 		end
-		currentReceiver=currentReceiver or next(sendable) or  NONAME
-		if currentReceiver==NONAME and self:GetBoolean("ALLSEND") then
+		currentReceiver=currentReceiver or next(sendable)
+		if not currentReceiver and self:GetBoolean("ALLSEND") then
 			for name,data in pairs(toonTable) do
 				if data.level >= self:GetNumber("MINLEVEL") then
 					currentReceiver=name
@@ -1328,26 +1342,27 @@ function addon:GetFilter()
 			end
 		end
 		if not self:GetBoolean("ALLSEND") and not sendable[currentReceiver] then
-			currentReceiver=NONAME
+			currentReceiver=nil
 		else
-			if currentReceiver==thisToon then currentReceiver=NONAME end
+			if currentReceiver==thisToon then currentReceiver=nil end
 		end
 		return currentReceiver
 	end
 end
 function addon:SetFilter(info,name)
-  if currentTab==INEED then
-    currentRequester=name
-  else
-    lastReceiver=currentReceiver
-    currentReceiver=name
+  if name and toonTable[name] then
+    if currentTab==INEED then
+      currentRequester=name
+    else
+      lastReceiver=name
+      currentReceiver=name
+    end
   end
-  UIDropDownMenu_SetText(mcf.Filter,name==NONAME and NONE or name)
+  UIDropDownMenu_SetText(mcf.Filter,name or NONE)
   self:UpdateMailCommanderFrame()
 end
 function addon:SetCatFilter(info,name)
-  currentCategory=NONAME
-  if dbcategory[name] then
+  if name and dbcategory[name] then
     currentCategory=name
   else
     for n,v in pairs(dbcategory) do
@@ -1355,7 +1370,7 @@ function addon:SetCatFilter(info,name)
       break
     end
   end
-  UIDropDownMenu_SetText(mcf.Filter,currentCategory==NONAME and NONE or currentCategory)
+  UIDropDownMenu_SetText(mcf.Filter,currentCategory or NONE)
   self:UpdateMailCommanderFrame()
 end
 function addon:RefreshSendable(sync)
@@ -1423,7 +1438,7 @@ function addon:InitializeDropDownForCats(this,level,menulist)
   info.disabled=nil
   local current=currentCategory
   print("Initializing dropdown for categories",current)
-  UIDropDownMenu_SetText(mcf.Filter,currentCategory == NONAME and NONE or currentCategory)
+  UIDropDownMenu_SetText(mcf.Filter,currentCategory or NONE)
   for name,data in pairs(dbcategory) do
         if not current then
           current = name
@@ -1434,7 +1449,7 @@ function addon:InitializeDropDownForCats(this,level,menulist)
         info.disabled=nil
         info.checked=strcmputf8i(current,name)==0
         if info.checked then
-          UIDropDownMenu_SetText(mcf.Filter,name==NONAME and NONE or name)
+          UIDropDownMenu_SetText(mcf.Filter,name or NONE)
         end
         info.arg1=name
         info.tooltipTitle=TRADE_SKILLS
@@ -1494,7 +1509,7 @@ function addon:InitializeDropDown(this,level,menulist)
 			  end
 				info.checked=strcmputf8i(current,name)==0
 				if info.checked then
-					UIDropDownMenu_SetText(mcf.Filter,name == NONAME and NONE or name)
+					UIDropDownMenu_SetText(mcf.Filter,name or NONE)
 				end
 				info.arg1=name
 				info.tooltipTitle=TRADE_SKILLS
@@ -1505,7 +1520,7 @@ function addon:InitializeDropDown(this,level,menulist)
 			end
 		end
 	end
-  UIDropDownMenu_SetText(mcf.Filter,current)
+  UIDropDownMenu_SetText(mcf.Filter,current or NONE)
 end
 function addon:BuildPresetItem(i)
   local frame=CreateFrame("Frame",nil,mcf,"MailCommanderItemTemplate")
@@ -1714,7 +1729,12 @@ function addon:RenderSendBox()
 	mcf.NameText:SetText(L["Items you can send to selected toon"])
 	local toon=self:GetFilter()
 	mcf:SetAttribute("section","items")
-	self:RenderButtonList(db.toons[toon].requests)
+	if toon then
+	 self:RenderButtonList(db.toons[toon].requests)
+	else
+   self:RenderButtonList()
+	end
+
 	--UIDropDownMenu_SetText(mcf.Filter,toon)
 end
 function addon:OldRenderSendBox()

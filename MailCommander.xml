@@ -149,6 +149,14 @@
 	</Frame>
 	<Frame name="MailCommander" virtual="true" toplevel="true" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="PortraitFrameTemplate"><!-- inherits="ButtonFrameTemplate">-->
 		<Size x="336" y="444"/>
+		<Attributes>
+			<Attribute name="UIPanelLayout-defined" type="boolean" value="true"/>
+			<Attribute name="UIPanelLayout-enabled" type="boolean" value="true"/>
+			<Attribute name="UIPanelLayout-area" type="string" value="left"/>
+			<Attribute name="UIPanelLayout-pushable" type="number" value="1"/>
+			<Attribute name="UIPanelLayout-whileDead" type="boolean" value="true"/>
+			<Attribute name="UIPanelLayout-width" type="number" value="350"/>
+		</Attributes>
 		<Layers>
 			<Layer level="BORDER">
 				<FontString parentKey="NameText" inherits="GameFontNormal" text="MailCommander">
@@ -471,11 +479,12 @@
 				MailCommander:OnLoad(self)
 			</OnLoad>
 			<OnShow>
-				if not SendMailFrame:IsVisible() then
-					self.Send:Disable()
-				else
-					self.Send:Enable()
-				end
+				local ISEND=self.tabSEND:GetID()
+		        if SendMailFrame:IsVisible() then
+          			PanelTemplates_EnableTab(self,ISEND)
+        		else
+          			PanelTemplates_DisableTab(self,ISEND)
+        		end
 				MailCommander:Open()
 			</OnShow>
 			<OnHide>

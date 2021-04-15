@@ -1,5 +1,5 @@
 ## Interface: 90005
-## Title: MailCommander @project-version@
+## Title: MailCommander 2 @project-version@
 ## Notes: Manages items distribution between multiple toons
 ## Notes-itIT: Gestisce la distribuzione di oggetti fra personaggi multipli
 ## Author: Alar of Daggerspine
@@ -7,7 +7,7 @@
 ## X-Revision: @project-abbreviated-hash@
 ## eMail: alar@aspide.it
 ## URL: http://wow.aspide.it
-## OptionalDeps: Titan, Bazooka, ChocolateBar , FuBar , LibDataBroker-1.1, LibDBIcon-1.0, LibDebug DataStore,DataStore_Characters, DataStore_Crafts
+## OptionalDeps: Titan, Bazooka, ChocolateBar , FuBar , LibDataBroker-1.1, LibDBIcon-1.0, LibDebug
 ## DefaultState: Enabled
 ## SavedVariables: dbMAC
 ## X-ID: MCOM

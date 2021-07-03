@@ -9,6 +9,12 @@ Mail Commander allows you to define a per character list of needs which wil be d
 You can make this selection permament, disabling some kind of items, or just cherry pick each time
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
+self:RelNotes(2,0,1,[[
+ Fix: MailCommander\MailCommander-2.0.0 90100.lua:1099: bad argument #1 to 'pairs' (table expected, got nil)
+]])
+self:RelNotes(2,0,0,[[
+ Feature: now you can create custom categories
+]])
 self:RelNotes(1,0,1,[[
 Feature: 8.3.0
 ]])

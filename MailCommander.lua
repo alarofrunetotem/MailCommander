@@ -1096,62 +1096,65 @@ function addon:MigrateDatabase()
     self.db.global.toons[NONAME]=nil
 --    return true
   end
-  for namespace,_ in pairs(rawdb.namespaces) do
-    self.db:RegisterNamespace(namespace,dbDefaults)
-    local original=rawdb.namespaces[namespace].global
-    -- Found the most up to date data for the toon
-    for toon,update in pairs(original.updateStock) do
-      if toon~=NONAME then
-        if toonUpdated[toon] and toonUpdated[toon] > update then
-        else
-          toonUpdated[toon]=update
-          toonSource[toon]=namespace
+  -- For fresh install namespaces do not exists
+  if type(rawdb.namespaces) == 'table' then
+    for namespace,_ in pairs(rawdb.namespaces) do
+      self.db:RegisterNamespace(namespace,dbDefaults)
+      local original=rawdb.namespaces[namespace].global
+      -- Found the most up to date data for the toon
+      for toon,update in pairs(original.updateStock) do
+        if toon~=NONAME then
+          if toonUpdated[toon] and toonUpdated[toon] > update then
+          else
+            toonUpdated[toon]=update
+            toonSource[toon]=namespace
+          end
         end
       end
     end
-  end
-  for toon,namespace in pairs(toonSource) do
-    -- Loading base toon data
-    fromdb=self.db:GetNamespace(namespace).global
-    for k,v in pairs(fromdb.toons[toon]) do
-      todb.toons[toon][k]=v
-    end
-    -- setting ignored flag
-    if fromdb.ignored then
-      todb.toons[toon].ignored=fromdb.ignored[toon]
-    end
-    todb.toons[toon].updated=toonUpdated[toon]
-    -- Loading request data
+    for toon,namespace in pairs(toonSource) do
+      -- Loading base toon data
+      fromdb=self.db:GetNamespace(namespace).global
+      for k,v in pairs(fromdb.toons[toon]) do
+        todb.toons[toon][k]=v
+      end
+      -- setting ignored flag
+      if fromdb.ignored then
+        todb.toons[toon].ignored=fromdb.ignored[toon]
+      end
+      todb.toons[toon].updated=toonUpdated[toon]
+      -- Loading request data
 
-    for _,data in pairs(fromdb.requests[toon] or empty) do
-      print(data.i, data.l)
+      for _,data in pairs(fromdb.requests[toon] or empty) do
+        print(data.i, data.l)
 
-      -- storing general item
-      todb.items[data.i]={
-        t=data.t or QUESTIONMARK_ICON,
-        l=data.l or pseudolink:format(data.i,MISSING)
-      }
-      -- now on toon we just store id with forbidden guys (as a concatenated string)
-      todb.toons[toon].requests[data.i]=true
-      print(toon,data.i,todb.toons[toon].requests[data.i])
+        -- storing general item
+        todb.items[data.i]={
+          t=data.t or QUESTIONMARK_ICON,
+          l=data.l or pseudolink:format(data.i,MISSING)
+        }
+        -- now on toon we just store id with forbidden guys (as a concatenated string)
+        todb.toons[toon].requests[data.i]=true
+        print(toon,data.i,todb.toons[toon].requests[data.i])
+      end
+      -- Loading caps
+      for id,qt in pairs(fromdb.cap[toon] or empty) do
+        todb.toons[toon].cap[id]=qt
+      end
+      for id,qt in pairs(fromdb.keep[toon] or empty) do
+        todb.toons[toon].keep[id]=qt
+      end
+      for id,qt in pairs(fromdb.stock[toon] or empty) do
+        todb.toons[toon].stock[id]=qt
+      end
     end
-    -- Loading caps
-    for id,qt in pairs(fromdb.cap[toon] or empty) do
-      todb.toons[toon].cap[id]=qt
-    end
-    for id,qt in pairs(fromdb.keep[toon] or empty) do
-      todb.toons[toon].keep[id]=qt
-    end
-    for id,qt in pairs(fromdb.stock[toon] or empty) do
-      todb.toons[toon].stock[id]=qt
-    end
-  end
-  for item,toons in pairs(fromdb.disabled or empty) do
-    for sender,receivers in pairs(toons or empty) do
-      for receiver,forbidden in pairs(receivers or empty) do
-        if forbidden then
-          if type(todb.toons[receiver].requests[item]) ~="table" then todb.toons[receiver].requests[item]={}
-            todb.toons[receiver].requests[item][sender]=true
+    for item,toons in pairs(fromdb.disabled or empty) do
+      for sender,receivers in pairs(toons or empty) do
+        for receiver,forbidden in pairs(receivers or empty) do
+          if forbidden then
+            if type(todb.toons[receiver].requests[item]) ~="table" then todb.toons[receiver].requests[item]={}
+              todb.toons[receiver].requests[item][sender]=true
+            end
           end
         end
       end

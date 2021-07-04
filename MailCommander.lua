@@ -397,6 +397,10 @@ local basepresets={ --#basepresets
         local itemlink=GetContainerItemLink(bag,slot)
         if itemlink then
           local id=parseLink(itemlink)
+          if not id then
+            self:Print(C("Invalid item ","Orange"),itemlink)
+            return
+          end
           local min=getProperty('keep',toon,id,0)
           local max=getProperty('cap',toon,id,CAP)
           local level=GetDetailedItemLevelInfo(itemlink)
@@ -998,6 +1002,7 @@ function addon:OnInitialized()
   Click on 'Cancel' and restore MailCommander 1.0 if you want to keep the old version
   ]],
   0,function(this)  C_Timer.After(0.5,addon.InitContinue) end,function() C_Timer.After(0.5,addon.InitDisabled) end,self)
+
 end
 function addon:InitDisabled()
   addon:Popup(C("Mailcommander","Orange").. "\n\n" .. "MailCommander has been disabled")
@@ -1056,7 +1061,7 @@ function addon:OnInitializedContinue()
 	self:AddBoolean("ALLFACTIONS",false,L["Show characters from both factions"],L["Show all toons fromj all factions"])
 	self:AddBoolean("ALLREALMS",false,L["Show characters from all realms"],L["Show all toons from all realms"])
 	self:AddLabel(L["Data management"])
-	self:AddAction("reset",L["Erase all stored data. Think twice"])
+	self:AddAction("Reset",L["Erase all stored data. Think twice"])
 --@debug@
   self:AddLabel(L["Debug Options"])
 	self:AddBoolean("DRY",false,"Disable mail sending")

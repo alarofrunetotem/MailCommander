@@ -196,7 +196,7 @@ local Count={cache={},
 	samefaction=setmetatable({},
 		{__index=function(table,key)
 		  if type(key)=="number" then error("Non doveva essere un numero") end
-		  table[key]=toonTable[key] and toonTable[key].faction==thisFaction or false
+		  table[key]=toonTable[key] or false
 		  return table[key]
 		  end
 		}

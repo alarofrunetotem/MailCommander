@@ -196,7 +196,7 @@ local Count={cache={},
 	samefaction=setmetatable({},
 		{__index=function(table,key)
 		  if type(key)=="number" then error("Non doveva essere un numero") end
-		  table[key]=toonTable[key] and toonTable[key].faction==thisFaction or false
+		  table[key]=toonTable[key] or false
 		  return table[key]
 		  end
 		}
@@ -1281,14 +1281,14 @@ function addon:CloseChooser()
 end
 function addon:OnLoad(frame)
 	mcf=frame
-	frame:SetClampedToScreen()
+	frame:SetClampedToScreen(true)
 	--MCF:EnableMouse(true)
 	--MCF:SetMovable(true)
 	frame.Send:SetText(L["Send All"])
 	frame.Send.tooltip="tooltip"
-	frame:RegisterForDrag("LeftButton")
-	frame:SetScript("OnDragStart",function(frame) frame:StartMoving() end)
-	frame:SetScript("OnDragStop",function(frame) frame:StopMovingOrSizing() end)
+	-- frame:RegisterForDrag("LeftButton")
+	-- frame:SetScript("OnDragStart",function(frame) frame:StartMoving() end)
+	-- frame:SetScript("OnDragStop",function(frame) frame:StopMovingOrSizing() end)
 	ButtonFrameTemplate_HidePortrait(frame)
 	UIDropDownMenu_SetWidth(frame.Filter, 150);
 	UIDropDownMenu_Initialize(frame.Filter, function(...) self:InitializeDropDown(...) end );
@@ -1569,18 +1569,18 @@ function addon:RenderButtonList(store,page)
 	if page>0 then
 		mcf.PrevPageButton:SetID(page-1)
 		mcf.PrevPageButton:Enable()
-		mcf.PrevPageButton.Text:SetTextColor(C.Yellow())
+		-- mcf.PrevPageButton.Text:SetTextColor(C.Yellow())
 	else
 		mcf.PrevPageButton:Disable()
-		mcf.PrevPageButton.Text:SetTextColor(C.Silver())
+		-- mcf.PrevPageButton.Text:SetTextColor(C.Silver())
 	end
 	if nextpage then
 		mcf.NextPageButton:SetID(page+1)
 		mcf.NextPageButton:Enable()
-		mcf.NextPageButton.Text:SetTextColor(C.Yellow())
+		-- mcf.NextPageButton.Text:SetTextColor(C.Yellow())
 	else
 		mcf.NextPageButton:Disable()
-		mcf.NextPageButton.Text:SetTextColor(C.Silver())
+		-- mcf.NextPageButton.Text:SetTextColor(C.Silver())
 	end
 end
 function addon:RenderCategoryBox()
@@ -2318,7 +2318,7 @@ function addon:RefreshItemlinks(...)
   refresher=coroutine.wrap(function()
     for i,data in pairs(db.items) do
       UpdateItemInfo(i)
-      C_Timer.After(0.001,refresher)
+    --   C_Timer.After(0.001,refresher)
       coroutine.yield(true)
     end
     addon:Debug("Refreshlink done")

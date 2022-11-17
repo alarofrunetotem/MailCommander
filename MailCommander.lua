@@ -24,6 +24,10 @@ addon:Debug("Started with debug enabled")
 local C=addon:GetColorTable()
 local L=addon:GetLocale()
 local I=LibStub("LibItemUpgradeInfo-1.0")
+local GetContainerNumSlots=C_Container.GetContainerNumSlots
+local GetContainerItemLink=C_Container.GetContainerItemLink
+local GetContainerItemInfo=C_Container.GetContainerItemInfo
+local UseContainerItem=C_Container.UseContainerItem
 local math=math
 local tContains=tContains
 local toc=select(4,GetBuildInfo())
@@ -1196,7 +1200,7 @@ end
 function addon:StartTooltips()
 	if hooked then return end
 	self:SecureHookScript(_G.GameTooltip,"OnHide","CloseDrag")
-	self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
+--	self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
 --	self:SecureHookScript(_G.ItemRefTooltip,"OnTooltipSetItem", "a2")
 --	self:SecureHookScript(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem", "a3")
 --	self:SecureHookScript(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem", "a4")
@@ -1208,7 +1212,7 @@ function addon:StartTooltips()
 end
 function addon:StopTooltips()
 	self:Unhook(_G.GameTooltip,"OnHide")
-	self:Unhook(_G.GameTooltip,"OnTooltipSetItem")
+--	self:Unhook(_G.GameTooltip,"OnTooltipSetItem")
 --	self:Unhook(_G.ItemRefTooltip,"OnTooltipSetItem")
 --	self:Unhook(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem")
 --	self:Unhook(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem")
@@ -1224,7 +1228,8 @@ function addon:OnDatabaseShutdown()
 	if type(db.updateStock)~="table" then db.updateStock={} end
 	db.updateStock[thisToon]=date("%Y-%m-%d %H:%M:%S",time())
 	for bag,slot in Bags() do
-		local itemId=select(10,GetContainerItemInfo(bag,slot))
+		local containerInfo = GetContainerItemInfo(bag,slot)
+		local itemId = containerInfo.itemID
 		if itemId then
 			db.stock[thisToon][itemId]=GetItemCount(itemId,true)-bags[itemId]
 		end
@@ -1767,7 +1772,9 @@ function addon:OnDeleteClick(this,button)
 end
 
 local function FillMailSlot(bag,slot)
-	local count,locked=select(2,GetContainerItemInfo(bag,slot))
+	local containerInfo = GetContainerItemInfo(bag,slot)
+	local count = containerInfo.stackCount
+	local locked = containerInfo.isLocked
 	addon:Debug("Filling from",bag,slot,GetContainerItemInfo(bag,slot))
 	if locked or not count then
 		addon:ScheduleTimer(FillMailSlot,0.01,bag,slot)
@@ -1826,7 +1833,8 @@ function addon:SearchItem(itemId)
     if itemLink then
       local id=parseLink(itemLink)
       if id then
-        local n=select(2,GetContainerItemInfo(bagId,slotId))
+		local containerInfo = GetContainerItemInfo(bagId,slotId)
+		local n = containerInfo.stackCount
         local GotIt=false
         if needed[id] then
           --self:Debug("Counting",id,itemLink)
@@ -1906,7 +1914,8 @@ function addon:NormalSearchItem(itemId)
       self:Debug(bagId,slotId,itemId,bagItemId)
       if itemId then
         if Count:IsSendable(itemId,bagItemId,toon,bagId,slotId) then
-          local n=select(2,GetContainerItemInfo(bagId,slotId))
+		  local containerInfo = GetContainerItemInfo(bagId,slotId)
+		  local n = containerInfo.stackCount
           tobesent[bagItemId]=Count:Sendable(itemId,toon)
           tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
         end
@@ -1915,7 +1924,8 @@ function addon:NormalSearchItem(itemId)
           local isdisabled=addon:IsDisabled(itemid,toon)
           if not isdisabled then
             if Count:IsSendable(itemid,bagItemId,toon,bagId,slotId) then
-              local n=select(2,GetContainerItemInfo(bagId,slotId))
+			  local containerInfo = GetContainerItemInfo(bagId,slotId)
+			  local n = containerInfo.stackCount
               tobesent[bagItemId]=Count:Sendable(itemid,toon)
               tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
             end
@@ -3029,4 +3039,3 @@ _G.MCOUNT=Count
 -- Key Bindings Names
 _G.BINDING_HEADER_MAILCOMMANDER="MailCommander"
 _G.BINDING_NAME_MCConfig=L["Requests Configuration"]
-

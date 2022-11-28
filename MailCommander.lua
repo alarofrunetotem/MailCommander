@@ -175,7 +175,7 @@ local function Bags()
 	local slot=0
 	return function()
 		if not bags[bag] then
-			bags[bag]=GetContainerNumSlots(bag)
+			bags[bag]=C_Container.GetContainerNumSlots(bag)
 		end
 		slot=slot+1
 		if slot>bags[bag] then
@@ -187,6 +187,10 @@ local function Bags()
 		end
 	end
 end
+local function GetContainerItemInfo(bagId,slotId)
+    local t=C_Container.GetContainerItemInfo(bagId,slotId)
+    return t.stackCount,t.isLocked
+end  
 local function currentToon()
 	return currentTab==INEED and currentRequester or currentReceiver
 end
@@ -394,7 +398,7 @@ local basepresets={ --#basepresets
 			return count
 		end,
 		validate=function (self,_,toon,bag,slot)
-        local itemlink=GetContainerItemLink(bag,slot)
+        local itemlink=C_Container.GetContainerItemLink(bag,slot)
         if itemlink then
           local id=parseLink(itemlink)
           if not id then
@@ -1196,7 +1200,8 @@ end
 function addon:StartTooltips()
 	if hooked then return end
 	self:SecureHookScript(_G.GameTooltip,"OnHide","CloseDrag")
-	self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
+  
+	--self:SecureHookScript(_G.GameTooltip,"OnTooltipSetItem", "attachItemTooltip")
 --	self:SecureHookScript(_G.ItemRefTooltip,"OnTooltipSetItem", "a2")
 --	self:SecureHookScript(_G.ItemRefShoppingTooltip1,"OnTooltipSetItem", "a3")
 --	self:SecureHookScript(_G.ItemRefShoppingTooltip2,"OnTooltipSetItem", "a4")
@@ -1224,10 +1229,13 @@ function addon:OnDatabaseShutdown()
 	if type(db.updateStock)~="table" then db.updateStock={} end
 	db.updateStock[thisToon]=date("%Y-%m-%d %H:%M:%S",time())
 	for bag,slot in Bags() do
-		local itemId=select(10,GetContainerItemInfo(bag,slot))
-		if itemId then
-			db.stock[thisToon][itemId]=GetItemCount(itemId,true)-bags[itemId]
-		end
+		local t=C_Container.GetContainerItemInfo(bag,slot)
+    if (t) then
+      local itemId=t.itemID
+      if itemId then
+        db.stock[thisToon][itemId]=GetItemCount(itemId,true)-bags[itemId]
+      end
+    end
 	end
 	db.stock[thisToon]['gold']=Count:Total("gold",thisToon)
 end
@@ -1767,12 +1775,11 @@ function addon:OnDeleteClick(this,button)
 end
 
 local function FillMailSlot(bag,slot)
-	local count,locked=select(2,GetContainerItemInfo(bag,slot))
-	addon:Debug("Filling from",bag,slot,GetContainerItemInfo(bag,slot))
+	local count,locked=GetContainerItemInfo(bag,slot)
 	if locked or not count then
 		addon:ScheduleTimer(FillMailSlot,0.01,bag,slot)
 	else
-		UseContainerItem(bag,slot)
+		C_Container.UseContainerItem(bag,slot)
 	end
 end
 function addon:Mail(itemId)
@@ -1822,11 +1829,12 @@ function addon:SearchItem(itemId)
   end
   --DevTools_Dump({'needed',needed})
   for bagId,slotId in Bags() do
-    local itemLink=GetContainerItemLink(bagId,slotId)
+    local itemLink=C_Container.GetContainerItemLink(bagId,slotId)
     if itemLink then
       local id=parseLink(itemLink)
       if id then
-        local n=select(2,GetContainerItemInfo(bagId,slotId))
+        local n=GetContainerItemInfo(bagId,slotId)
+        print("Check",bagId,slotId,n,itemLink,C_Container.GetContainerItemInfo(bagId,slotId))
         local GotIt=false
         if needed[id] then
           --self:Debug("Counting",id,itemLink)
@@ -1858,7 +1866,7 @@ function addon:SearchItem(itemId)
     table.sort(sortable)
     for i=1,#sortable do
       local qt,itemId,bagId,slotId=strsplit(":",sortable[i])
-      local itemLink=GetContainerItemLink(bagId,slotId)
+      local itemLink=C_Container.GetContainerItemLink(bagId,slotId)
       if tobesent[itemId]>0 then
         qt=10000-tonumber(qt)
         self:Debug(itemLink,qt,tobesent[itemId])
@@ -1901,12 +1909,12 @@ function addon:NormalSearchItem(itemId)
   wipe(needed)
   local toon=currentReceiver
   for bagId,slotId in Bags() do
-    local bagItemId=GetContainerItemID(bagId,slotId)
+    local bagItemId=C_Container.GetContainerItemID(bagId,slotId)
     if bagItemId then
       self:Debug(bagId,slotId,itemId,bagItemId)
       if itemId then
         if Count:IsSendable(itemId,bagItemId,toon,bagId,slotId) then
-          local n=select(2,GetContainerItemInfo(bagId,slotId))
+          local n=GetContainerItemInfo(bagId,slotId)
           tobesent[bagItemId]=Count:Sendable(itemId,toon)
           tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
         end
@@ -1915,7 +1923,7 @@ function addon:NormalSearchItem(itemId)
           local isdisabled=addon:IsDisabled(itemid,toon)
           if not isdisabled then
             if Count:IsSendable(itemid,bagItemId,toon,bagId,slotId) then
-              local n=select(2,GetContainerItemInfo(bagId,slotId))
+              local n=GetContainerItemInfo(bagId,slotId)
               tobesent[bagItemId]=Count:Sendable(itemid,toon)
               tinsert(sortable,format("%05d:%s:%s:%s",10000+bags[bagItemId]-n,bagItemId,bagId,slotId))
             end
@@ -1988,8 +1996,8 @@ function addon:MoveItemToSendBox(itemId,bagId,slotId,qt)
 	if needsplit then
 		local freebag,freeslot=self:ScanBags(0,0)
 		if freebag and freeslot then
-			SplitContainerItem(bagId,slotId,qt)
-			PickupContainerItem(freebag,freeslot)
+			C_Container.SplitContainerItem(bagId,slotId,qt)
+			C_Container.PickupContainerItem(freebag,freeslot)
 			FillMailSlot(freebag,freeslot)
 		else
 			self:Print(L["Need at least one free slot in bags in order to send less than a full stack"])

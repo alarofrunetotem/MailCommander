@@ -47,6 +47,7 @@ local MONEY=MONEY
 local ITEM_BNETACCOUNTBOUND=ITEM_BNETACCOUNTBOUND
 local toc=select(4,GetBuildInfo())
 local ISCLASSIC=toc < 90000
+local NUM_BAG_SLOTS = NUM_TOTAL_BAG_FRAMES
 local function keep(toon,id)
   if not toon then return 0 end
   return (legacy and db.keep[toon][id] or db.toons[toon].keep[id]) or 0
@@ -1067,7 +1068,7 @@ function addon:OnInitializedContinue()
 	self:AddLabel(L["Data management"])
 	self:AddAction("Reset",L["Erase all stored data. Think twice"])
 --@debug@
-  self:AddLabel(L["Debug Options"])
+  self:AddLabel(L["Debug Options"]) 
 	self:AddBoolean("DRY",false,"Disable mail sending")
   self:AddBoolean("DEBUG",false,"Shows debug messages")
 --@end-debug@

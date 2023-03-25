@@ -9,7 +9,9 @@ Mail Commander allows you to define a per character list of needs which wil be d
 You can make this selection permament, disabling some kind of items, or just cherry pick each time
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
-self:RelNotes(2,0,2,[[
+self:RelNotes(2,2,0,[[
+  Toc: Updated to 10.0.7
+]])self:RelNotes(2,0,2,[[
   Fix: MailCommander\MailCommander-2.0.1 90100.lua:403: Usage: GetItemInfoInstant(itemID|"name"|"itemlink")
 ]])
 self:RelNotes(2,0,1,[[

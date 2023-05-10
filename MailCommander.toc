@@ -1,4 +1,4 @@
-## Interface: 100007
+## Interface: 100100
 ## Title: MailCommander 2 @project-version@
 ## Notes: Manages items distribution between multiple toons
 ## Notes-itIT: Gestisce la distribuzione di oggetti fra personaggi multipli

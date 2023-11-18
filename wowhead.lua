@@ -225,4 +225,5 @@ ns.trainingstones={
   116424, -- 7Aquatic Battle-Training Stone
   116429, -- 7Flawless Battle-Training Stone
   127755, -- 7Fel-Touched Battle-Training Stone
+  122457, -- 7Ultimate Battle-Training Stone
 }

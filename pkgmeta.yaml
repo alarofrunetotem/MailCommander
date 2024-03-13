@@ -9,8 +9,8 @@ optional-dependencies:
    - datastore_containers
 
 externals:
-   libs/LibInitRoot:
-      url: https://github.com/alarofrunetotem/LibInit.git
+   libs/LibInit:
+      url: https://github.com/alarofrunetotem/LibInit.git/LibInit
       tag: latest
 
    libs/Ace3/AceBucket-3.0:

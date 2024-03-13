@@ -9,8 +9,8 @@ optional-dependencies:
    - datastore_containers
 
 externals:
-   libs/LibInit:
-      url: https://github.com/alarofrunetotem/LibInit.git/LibInit
+   libs/LibInitRoot:
+      url: https://github.com/alarofrunetotem/LibInit.git
       tag: latest
 
    libs/Ace3/AceBucket-3.0:
@@ -24,7 +24,12 @@ externals:
    libs/LibDBIcon-1.0:
       url: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
 
+move-folders:
+   libs/LibInitRoot/LibInit
+   libs/LibInit
+
 ignore:
    - Debug.lua
    - info.txt
    - wowhead.sh
+   - pkgmeta.yaml

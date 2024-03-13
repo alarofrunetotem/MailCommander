@@ -1,5 +1,6 @@
 package-as: MailCommander
 enable-nolib-creation: no
+enable-toc-creation: yes
 
 optional-dependencies:
    - datastore

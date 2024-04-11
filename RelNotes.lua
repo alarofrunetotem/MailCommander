@@ -10,9 +10,13 @@ You can make this selection permament, disabling some kind of items, or just che
 You can also use the "Send all" button to have all enabled items sent with a single click
 
 ]])
+self:RelNotes(2,4,5,[[
+  Toc: Updated to 10.2.6
+]])
 self:RelNotes(2,2,0,[[
   Toc: Updated to 10.0.7
-]])self:RelNotes(2,0,2,[[
+]])
+self:RelNotes(2,0,2,[[
   Fix: MailCommander\MailCommander-2.0.1 90100.lua:403: Usage: GetItemInfoInstant(itemID|"name"|"itemlink")
 ]])
 self:RelNotes(2,0,1,[[

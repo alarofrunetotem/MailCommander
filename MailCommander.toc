@@ -1,7 +1,6 @@
-## Interface: 100205
-## Interface-Classic: 11501
-## Interface-Wrath: 40400
-## Interface-BCC: 20504
+## Interface: 100207
+## Interface-Classic: 11502
+## Interface-Cata: 40400
 ## Title: MailCommander 2 @project-version@
 ## Notes: Manages items distribution between multiple toons
 ## Notes-itIT: Gestisce la distribuzione di oggetti fra personaggi multipli

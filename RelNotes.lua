@@ -10,6 +10,9 @@ You can make this selection permament, disabling some kind of items, or just che
 You can also use the "Send all" button to have all enabled items sent with a single click
 
 ]])
+self:RelNotes(2,5,1,[[
+  Toc: Updated to 10.2.7
+]])
 self:RelNotes(2,4,5,[[
   Toc: Updated to 10.2.6
 ]])

@@ -254,7 +254,7 @@ function Count:Total(id, toon, bank)
 	if type(id) == "string" and presets[id] then
 		return presets[id]:count(id, toon, bank) or 0
 	else
-		return GetItemCount(id, bank) - bags[id] or 0
+		return (C_Item.GetItemCount(id, bank) - bags[id]) or 0
 	end
 end
 
@@ -311,7 +311,7 @@ function Count:IsSendable(id, idInBag, toon, bagId, slotId)
 	if presets[id] and type(presets[id].validate) == "function" then
 		return presets[id]:validate(idInBag, toon, bagId, slotId)
 	else
-		local boa = I:IsBoa(GetContainerItemLink(bagId, slotId))
+		local boa = I:IsBoa(C_Container.GetContainerItemLink(bagId, slotId))
 		if not Count:CanSendMail(toon) and not boa then return false end
 		return id == idInBag
 	end
@@ -445,15 +445,16 @@ local basepresets = { --#basepresets
 				end
 				local min = getProperty('keep', toon, id, 0)
 				local max = getProperty('cap', toon, id, CAP)
-				local level = GetDetailedItemLevelInfo(itemlink)
-				local itemType, itemSubType = select(6, GetItemInfoInstant(id))
-				if db.items[id].boe and IsEquippableItem(itemlink) and level >= min and level <= max then
-					if itemType ~= LE_ITEM_CLASS_WEAPON and itemType ~= LE_ITEM_CLASS_WEAPON then return false end
+				local level = C_Item.GetDetailedItemLevelInfo(itemlink)
+				local itemType, itemSubType = select(6, C_Item.GetItemInfoInstant(id))
+				if db.items[id].boe and C_Item.IsEquippableItem(itemlink) and level >= min and level <= max then
+					if itemType ~= Enum.ItemClass.Weapon then return false end
 					local rc, alreadybound = pcall(C_Item.IsBound, ItemLocation:CreateFromBagAndSlot(bag, slot))
 					return not alreadybound
 				end
 			end
 		end,
+		
 		res = false,
 		cap = L['Maximum Level'],
 		keep = L['Minimum Level']
@@ -2471,8 +2472,8 @@ local function UpdateItemInfo(itemId)
 			local data = db.items[itemId]
 			data.l = link
 			data.t = texture
-			data.bop = (bindType == LE_ITEM_BIND_ON_ACQUIRE)
-			data.boe = (bindType == LE_ITEM_BIND_ON_EQUIP or bindType == LE_ITEM_BIND_ON_USE)
+			data.bop = (bindType == Enum.ItemBind.OnAcquire)
+			data.boe = (bindType == Enum.ItemBind.OnEquip or bindType == Enum.ItemBind.OnUse)
 			data.boa = quality == Enum.ItemQuality.Heirloom or I:IsBoa(itemId)
 		end
 	end

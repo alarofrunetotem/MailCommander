@@ -9,6 +9,9 @@ Mail Commander allows you to define a per character list of needs which wil be d
 You can make this selection permament, disabling some kind of items, or just cherry pick each time
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
+self:RelNotes(2,6,1,[[
+  Rebuild: libraries upgrade
+]])
 self:RelNotes(2,6,0,[[
   Toc: Updated to 11.0.0, 11.0.2
 ]])

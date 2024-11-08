@@ -502,7 +502,8 @@ local HELP_ICON = "\124TInterface\\AddOns\\MailCommander\\helpItems.tga:64:256\1
 local CTRL_KEY_TEXT, SHIFT_KEY_TEXT = CTRL_KEY_TEXT, SHIFT_KEY_TEXT
 local FILTER, SEND, NEED, CATEGORIES, CATEGORY, MISSING = FILTER, SEND_LABEL, NEED, CATEGORIES, CATEGORY, ADDON_MISSING
 local kpairs = addon:getKpairs()
-local GameTooltip = CreateFrame("GameTooltip", "MailCommanderTooltip", UIParent, "GameTooltipTemplate")
+---@class GTooltip:GameTooltip
+local GTooltip = CreateFrame("GameTooltip", "MailCommanderTooltip", UIParent, "GameTooltipTemplate")
 
 local function checkBags()
 	wipe(bags)
@@ -531,7 +532,8 @@ function addon:InitLdb()
 		iconG = 1,
 		iconB = 1,
 	}
-	ldb = LDB:NewDataObject(me, fakeLdb) --#ldb
+	---@class ldb: LibDataBroker.QuickLauncher
+	ldb = LDB:NewDataObject(me, fakeLdb)
 	ldb.Update = function(self)
 		if oldshouldsend ~= shouldsend then
 			ldb.text = shouldsend and C(L["You have items to send"], "GREEN") or C(L["Nothing to send"], "SILVER")
@@ -544,7 +546,7 @@ function addon:InitLdb()
 			end
 		end
 	end
-	ldb.OnClick = function(self, button)
+	ldb.OnClick = function(_frame, button)
 		if button == "RightButton" then
 			addon:Gui()
 			return
@@ -556,36 +558,36 @@ function addon:InitLdb()
 			addon:OpenConfig()
 		end
 	end
-	ldb.OnTooltipShow = function(self, ...)
+	ldb.OnTooltipShow = function(frame)
 		if not shouldsend then
-			self:AddLine(L["Nothing to send"], C:Silver())
+			frame:AddLine(L["Nothing to send"], C:Silver())
 		else
-			self:AddLine(L["Items available for:"], C:Green())
+			frame:AddLine(L["Items available for:"], C:Green())
 			for name, data in pairs(db.toons) do
 				if sendable[name] and name ~= thisToon and toonTable[name] then
-					self:AddLine(toonTable[name].text)
+					frame:AddLine(toonTable[name].text)
 					if legacy then
 						for _, d in pairs(db.requests[name]) do
 							local c = Count:Sendable(d.i, name)
 							if c and c > 0 then
-								self:AddDoubleLine("   " .. d.l, c, nil, nil, nil, C:Green())
+								frame:AddDoubleLine("   " .. d.l, c, nil, nil, nil, C:Green())
 							end
 						end
 					else
 						for itemId, data in pairs(db.toons[name].requests) do
 							local c = Count:Sendable(itemId, name)
 							if c and c > 0 then
-								self:AddDoubleLine("   " .. db.items[itemId].l, c, nil, nil, nil, C:Green())
+								frame:AddDoubleLine("   " .. db.items[itemId].l, c, nil, nil, nil, C:Green())
 							end
 						end
 					end
 				end
 			end
 		end
-		self:AddDoubleLine(KEY_BUTTON1, L['Open requester'], nil, nil, nil, C:Green())
-		self:AddDoubleLine(KEY_BUTTON2, L['Open configuration'], nil, nil, nil, C:Green())
+		frame:AddDoubleLine(KEY_BUTTON1, L['Open requester'], nil, nil, nil, C:Green())
+		frame:AddDoubleLine(KEY_BUTTON2, L['Open configuration'], nil, nil, nil, C:Green())
 		if thisFaction == "Neutral" then
-			self:AddLine(L["ATTENTION: Neutral characters cant use mail"], C:Orange())
+			frame:AddLine(L["ATTENTION: Neutral characters cant use mail"], C:Orange())
 		end
 	end
 	if icon then
@@ -818,7 +820,7 @@ end
 
 function addon:CloseTip()
 	if _G.GameTooltip then _G.GameTooltip:Hide() end
-	if GameTooltip then GameTooltip:Hide() end
+	if GTooltip then GTooltip:Hide() end
 end
 
 function addon:loadSelf(level)
@@ -877,16 +879,19 @@ function addon:loadToonList()
 					data.class = data.class or UNKNOWN
 					data.localizedClass = data.localizedClass or UNKNOWN
 					data.level = data.level or maxLevel
-					local classcolor = C_ClassColor.GetClassColor(data.class)
-					if classcolor then
-						classcolor = classcolor:GenerateHexColorMarkup()
+					print("Found and loaded toon: " .. name, data.class, data.localizedClass, data.level)
+					local success,classcolor = pcall(C_ClassColor.GetClassColor,data.class)
+					local colore
+					if success then
+						colore = classcolor:GenerateHexColorMarkup()
 					else
-						classcolor = "|cff" .. C.Gray
+						print("Failed to get class color for",data.class,classcolor)
+						colore = "|cff" .. C.Gray
 					end
 					local pattern = "%s%s (%s %d)|r"
 					toonTable[name] = {
 						-- text=data.class and format("|c%s%s (%s %d)|r",_G.RAID_CLASS_COLORS[data.class].colorStr,name,data.localizedClass,data.level) or name,
-						text = pattern:format(classcolor, name, data.localizedClass, data.level),
+						text = pattern:format(colore, name, data.localizedClass, data.level),
 						tooltip = (data.p1 and data.p1 .. "\n" or "") .. (data.p2 and data.p2 .. "\n" or ""),
 						realm = data.realm,
 						level = data.level,
@@ -914,45 +919,6 @@ function addon:InitData()
 	self:loadSelf()
 	currentRequester = thisToon
 	currentReceiver = db.lastReceiver
-	-- Sorry, I no longer truyst datastore
-	if false and _G.DataStore then
-		local d = _G.DataStore
-		local delay = 60 * 60 * 24 * 30 -- does not import old toons
-		local realmList = _G.DataStore:GetRealmsConnectedWith(thisRealm)
-		tinsert(realmList, thisRealm)
-		for _, realm in pairs(realmList) do
-			for name, key in pairs(d:GetCharacters(realm)) do
-				name = name .. '-' .. realm
-				if name ~= thisToon then -- Do not overwrite current data with (possibly) stale data
-					if d:IsEnabled("DataStore_Characters") then
-						local faction = d:GetCharacterFaction(key)
-						local level = d:GetCharacterLevel(key)
-						local localizedClass, class = d:GetCharacterClass(key)
-						local p1, p2
-						if d:IsEnabled("DataStore_Crafts") then
-							local l, _, _, n = d:GetProfession1(key)
-							if l and l > 0 then
-								p1 = format("%s (%d)", n, l)
-							end
-							local l, _, _, n = d:GetProfession2(key)
-							if l and l > 0 then
-								p2 = format("%s (%d)", n, l)
-							end
-						end
-						if not db.toons[name] then db.toons[name] = {} end
-						if faction then db.toons[name].faction = faction end
-						if localizedClass then db.toons[name].localizedClass = localizedClass end
-						if class then db.toons[name].class = class end
-						if level then db.toons[name].level = level end
-						if p1 then db.toons[name].p1 = p1 end
-						if p2 then db.toons[name].p2 = p2 end
-						db.toons[name].realm = realm
-						if coroutine.running() then coroutine.yield() end
-					end
-				end
-			end
-		end
-	end
 	self:loadToonList()
 	addon:RefreshItemlinks()
 	db.locale = GetLocale()
@@ -977,8 +943,10 @@ function addon:InitData()
 	-- ,'TRADE_SKILL_UPDATE'
 	self:RegisterBucketEvent({ 'PLAYER_SPECIALIZATION_CHANGED' }, 5, 'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
+---@diagnostic disable-next-line: undefined-field
 	self:SecureHookScript(_G.SendMailFrame, "OnShow", "OpenSender")
-	self:SecureHookScript(_G.SendMailFrame, "OnHide", "CloseChooser")
+---@diagnostic disable-next-line: undefined-field
+self:SecureHookScript(_G.SendMailFrame, "OnHide", "CloseChooser")
 	SendMailMailButton:SetScript("PreClick", function()
 		mailRecipient = SendMailNameEditBox:GetText()
 	end)
@@ -1573,7 +1541,7 @@ function addon:InitializeDropDown(this, level, menulist)
 		local data = toonTable[name]
 		if realm ~= data.realm then
 			realm = data.realm
-			if type(realm) == "nil" then self:applyDEBUG("Realm is nil for", data.name) end
+			if type(realm) == "nil" then self:Debug("Realm is nil for", data.name) end
 			info.isTitle = true
 			info.notCheckable = true
 			info.leftPadding = nil
@@ -1758,14 +1726,15 @@ function addon:RenderSendBox()
 end
 
 function addon:OnSendEnter(this)
-	local tip = GameTooltip
+	local tip = GTooltip
 	tip:SetOwner(this, "ANCHOR_CURSOR")
 	tip:AddLine(L["Send all enabled items (no confirmation asked)"])
 	tip:Show()
 end
 
 function addon:OnAddContactEnter(this)
-	local tip = GameTooltip
+	local tip = GTooltip
+	local tip = GTooltip
 	tip:SetOwner(this, "ANCHOR_CURSOR")
 	tip:AddLine(L["Directly add a toon to the recipient list"])
 	tip:Show()
@@ -1778,7 +1747,7 @@ end
 
 function addon:OnInfoEnter(this)
 	if currentTab == IFILTER then
-		local tip = GameTooltip
+		local tip = GTooltip
 		tip:SetOwner(this, "ANCHOR_CURSOR")
 		tip:AddLine(L["Click to change minimum shown level"])
 		tip:Show()
@@ -1786,7 +1755,7 @@ function addon:OnInfoEnter(this)
 end
 
 function addon:OnDeleteEnter(this)
-	local tip = GameTooltip
+	local tip = GTooltip
 	tip:SetOwner(this, "ANCHOR_CURSOR")
 	tip:AddLine(L["Remove the selected toon from the droplist"])
 	tip:Show()
@@ -1797,7 +1766,7 @@ function addon:OnHelpClick(this)
 end
 
 function addon:OnHelpEnter(this)
-	local tip = GameTooltip
+	local tip = GTooltip
 	tip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
 	if currentTab == INEED then
 		tip:AddLine(L["Mail Commander request configuration"], C:Orange())
@@ -1832,7 +1801,6 @@ end
 function addon:SetLimit(itemInBag, dbg)
 	if true then return end
 	if not itemInBag then return end
-	local qt = 0
 	local toon = currentTab == INEED and currentRequester or currentReceiver
 	local stock = stock(toon, itemInBag)
 	local keep = keep(thisToon, itemInBag)
@@ -1856,26 +1824,6 @@ function addon:SetLimit(itemInBag, dbg)
 	tobesent[itemInBag] = qt
 end
 
-local function DeleteStore(popup, toon)
-	local key = _G.DataStore:GetCharacter(toon)
-	_G.DataStore:DeleteCharacter(toon)
-	currentRequester = NONAME
-	addon:UpdateMailCommanderFrame()
-end
-function addon:DeleteStore()
-	if currentRequester and currentRequester ~= NONAME then
-		self:Popup(
-			C("Mailcommander", "Orange") .. "\n" .. format(L["Do you want to delete %1$s\nfrom DataStore, too?"] ..
-				"\n" ..
-				L["If you dont remove %1$s also from DataStore, it will be back"], currentRequester),
-			DeleteStore, function()
-				currentRequester = NONAME
-				addon:UpdateMailCommanderFrame()
-			end, currentRequester)
-		currentRequester = NONAME
-	end
-end
-
 local function DeleteToon(popup, toon)
 	if not legacy then
 		db.toons[toon] = nil
@@ -1886,7 +1834,6 @@ local function DeleteToon(popup, toon)
 			wipe(db.disabled[itemid][toon])
 		end
 	end
-	local d = _G.DataStore
 	currentRequester = NONAME
 	print("LoadToonList")
 	addon:loadToonList()
@@ -1894,6 +1841,7 @@ local function DeleteToon(popup, toon)
 	addon:UpdateMailCommanderFrame()
 end
 function addon:OnDeleteClick(this, button)
+---@diagnostic disable-next-line: redefined-local
 	local info = rawget(db.toons, currentRequester)
 	if info then
 		self:Popup(C("Mailcommander", "Orange") .. "\n" .. format(L["Do you want to delete\n%s?"], info.text), DeleteToon,
@@ -1974,12 +1922,12 @@ function addon:SearchItem(itemId)
 					GotIt = true
 				elseif needed.boatoken then
 					if presets.boatoken:validate(id, toon, bagId, slotId, true) then
-						tobesent[id] = Count:Sendable(id, toon, bagId, slotId)
+						tobesent[id] = Count:Sendable(id, toon)
 						GotIt = true
 					end
 				elseif needed.boe then
 					if presets.boe:validate(id, toon, bagId, slotId) then
-						tobesent[id] = Count:Sendable(id, toon, bagId, slotId)
+						tobesent[id] = Count:Sendable(id, toon)
 						GotIt = true
 					end
 				end
@@ -2642,14 +2590,19 @@ function addon:ClickedOnItem(itemButton, button)
 end
 
 function addon:OnResetEnter(itemButton, motion)
-	GameTooltip:SetOwner(itemButton, "ANCHOR_RIGHT")
-	GameTooltip:AddLine(RESET .. " " .. itemButton.Text:GetText())
-	GameTooltip:Show()
+---@diagnostic disable-next-line: param-type-mismatch
+	GTooltip:SetOwner(itemButton, "ANCHOR_RIGHT")
+---@diagnostic disable-next-line: param-type-mismatch
+	GTooltip:AddLine(RESET .. " " .. itemButton.Text:GetText())
+---@diagnostic disable-next-line: param-type-mismatch
+	GTooltip:Show()
 end
 
 function addon:OnDescEnter(frame)
-	GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-	GameTooltip:AddLine("Prova")
+---@diagnostic disable-next-line: param-type-mismatch
+	GTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+---@diagnostic disable-next-line: param-type-mismatch
+	GTooltip:AddLine("Prova")
 end
 
 function addon:TipColor(c, enabled)
@@ -2662,8 +2615,8 @@ end
 
 function addon:OnItemEnter(itemButton, motion)
 	local section = itemButton:GetAttribute("section")
-	GameTooltip:SetOwner(itemButton, "ANCHOR_RIGHT")
-	GameTooltip:ClearLines()
+	GTooltip:SetOwner(itemButton, "ANCHOR_RIGHT")
+	GTooltip:ClearLines()
 	local ENABLEME = ENABLE .. ' for ' .. thisToon
 	local DISABLEME = DISABLE .. ' for ' .. thisToon
 	local ENABLEALL = ENABLE .. ' for all toons (takes precedence)'
@@ -2674,15 +2627,15 @@ function addon:OnItemEnter(itemButton, motion)
 		local itemlink = itemButton:GetAttribute('itemlink')
 		if itemlink then
 			--GameTooltip:SetHyperlink(itemlink)
-			GameTooltip:AddLine(itemlink:gsub('[%]%[]', ''))
+			GTooltip:AddLine(itemlink:gsub('[%]%[]', ''))
 			local itemId = parseLink(itemlink)
 			local disabled, disabledAll, disabledMe = addon:IsDisabled(itemId)
 			local color1 = C.White
 			local color2 = disabled and GREEN_FONT_COLOR or RED_FONT_COLOR
 			if currentTab == ICATEGORIES then
-				GameTooltip:AddDoubleLine(KEY_BUTTON1, L["Use as category Icon"], color1.r, color1.g, color1.b,
+				GTooltip:AddDoubleLine(KEY_BUTTON1, L["Use as category Icon"], color1.r, color1.g, color1.b,
 					GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
-				GameTooltip:AddDoubleLine(KEY_BUTTON2, REMOVE, color1.r, color1.g, color1.b, RED_FONT_COLOR.r,
+				GTooltip:AddDoubleLine(KEY_BUTTON2, REMOVE, color1.r, color1.g, color1.b, RED_FONT_COLOR.r,
 					RED_FONT_COLOR.g, RED_FONT_COLOR.b)
 			else
 				local toon = currentToon()
@@ -2691,54 +2644,58 @@ function addon:OnItemEnter(itemButton, motion)
 				local keepMsg = info and info.keep or L['Set min storage']
 				local capMsg = info and info.cap or L['Set max storage']
 				if currentTab == INEED then
-					GameTooltip:AddDoubleLine(KEY_BUTTON1, (disabledMe and ENABLEME or DISABLEME),
+					GTooltip:AddDoubleLine(KEY_BUTTON1, (disabledMe and ENABLEME or DISABLEME),
 						self:TipColor(color1, disabledMe))
-					GameTooltip:AddDoubleLine(ALT_KEY_TEXT .. ' - ' .. KEY_BUTTON1,
+					GTooltip:AddDoubleLine(ALT_KEY_TEXT .. ' - ' .. KEY_BUTTON1,
 						(disabledAll and ENABLEALL or DISABLEALL), self:TipColor(color1, disabledAll))
 					if disabledAll then
-						GameTooltip:AddLine(L["This item has been disabled for ALL toons"], C:Orange())
+						GTooltip:AddLine(L["This item has been disabled for ALL toons"], C:Orange())
 					elseif disabledMe then
-						GameTooltip:AddLine(L["This item has been disabled only for "] .. thisToon, C:Orange())
+						GTooltip:AddLine(L["This item has been disabled only for "] .. thisToon, C:Orange())
 					end
-					GameTooltip:AddDoubleLine(KEY_BUTTON2, REMOVE, color1.r, color1.g, color1.b, RED_FONT_COLOR.r,
+					GTooltip:AddDoubleLine(KEY_BUTTON2, REMOVE, color1.r, color1.g, color1.b, RED_FONT_COLOR.r,
 						RED_FONT_COLOR.g, RED_FONT_COLOR.b)
 				else
-					GameTooltip:AddDoubleLine(KEY_BUTTON1, (DontSendNow[itemId] and ENABLESEND or DISABLESEND),
+					GTooltip:AddDoubleLine(KEY_BUTTON1, (DontSendNow[itemId] and ENABLESEND or DISABLESEND),
 						self:TipColor(color1, DontSendNow[itemId]))
-					if disabled then GameTooltip:AddLine(
+					if disabled then GTooltip:AddLine(
 						format(L["Disabled items are not sent with \"%s\" button"], L["Send All"]), C:Orange()) end
-					GameTooltip:AddDoubleLine(KEY_BUTTON2, L["Add to sendmail panel"], color1.r, color1.g, color1.b,
+					GTooltip:AddDoubleLine(KEY_BUTTON2, L["Add to sendmail panel"], color1.r, color1.g, color1.b,
 						GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
 				end
-				GameTooltip:AddLine("Settings for " .. toon, C:Orange())
+				GTooltip:AddLine("Settings for " .. toon, C:Orange())
 				if split then
-					GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1, keepMsg .. ' (Min)', color1.r,
-						color1.g, color1.b, C:Yellow())
-					GameTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1, capMsg .. ' (Max)', color1.r,
-						color1.g, color1.b, C:Green())
-					GameTooltip:AddDoubleLine("Min:", keep(toon, itemId), C.White.r, C.White.g, C.White.b, C:Yellow())
-					GameTooltip:AddDoubleLine("Max:", cap(toon, itemId) == CAP and 'N/A' or cap(toon, itemId), C.White.r,
-						C.White.g, C.White.b, C:Green())
+---@diagnostic disable-next-line: param-type-mismatch
+					GTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1, keepMsg .. ' (Min)', color1.r,
+					color1.g, color1.b, C:Yellow())
+---@diagnostic disable-next-line: param-type-mismatch
+					GTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1, capMsg .. ' (Max)', color1.r,
+					color1.g, color1.b, C:Green())
+---@diagnostic disable-next-line: param-type-mismatch
+					GTooltip:AddDoubleLine("Min:", keep(toon, itemId), C.White.r, C.White.g, C.White.b, C:Yellow())
+---@diagnostic disable-next-line: param-type-mismatch
+					GTooltip:AddDoubleLine("Max:", cap(toon, itemId) == CAP and 'N/A' or cap(toon, itemId), C.White.r,
+					C.White.g, C.White.b, C:Green())
 				end
 				local qt = GetItemCount(itemId) - bags[itemId]
 				if info then qt = Count:Sendable(itemId, toon) end
-				GameTooltip:AddLine("Availability on " .. C(thisToon, 'Green'), C:Orange())
+				GTooltip:AddLine("Availability on " .. C(thisToon, 'Green'), C:Orange())
 				if split then
-					GameTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1,
+					GTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1,
 						L["Set reserved"], color1.r, color1.g, color1.b, C:Cyan())
 				end
-				GameTooltip:AddDoubleLine("Total:", qt, nil, nil, nil, C:Silver())
+				GTooltip:AddDoubleLine("Total:", qt, nil, nil, nil, C:Silver())
 				if split then
-					GameTooltip:AddDoubleLine("Reserved:", keep(thisToon, itemId), nil, nil, nil, C:Cyan())
-					GameTooltip:AddDoubleLine("Sendable:", math.max(0, qt - keep(thisToon, itemId)), nil, nil, nil,
+					GTooltip:AddDoubleLine("Reserved:", keep(thisToon, itemId), nil, nil, nil, C:Cyan())
+					GTooltip:AddDoubleLine("Sendable:", math.max(0, qt - keep(thisToon, itemId)), nil, nil, nil,
 						C:White())
 				else
-					GameTooltip:AddDoubleLine("Sendable:", qt, nil, nil, nil, C:White())
+					GTooltip:AddDoubleLine("Sendable:", qt, nil, nil, nil, C:White())
 				end
 				--@debug@
-				GameTooltip:AddDoubleLine("Id:", itemId, C:Silver())
-				GameTooltip:AddDoubleLine("Sending:", sending[itemId], C:Silver())
-				GameTooltip:AddDoubleLine("Tobesent:", tobesent[itemId], C:Silver())
+				GTooltip:AddDoubleLine("Id:", itemId, C:Silver())
+				GTooltip:AddDoubleLine("Sending:", sending[itemId], C:Silver())
+				GTooltip:AddDoubleLine("Tobesent:", tobesent[itemId], C:Silver())
 				--@end-debug@
 				if IsShiftKeyDown() then
 					local t = self:NewTable()
@@ -2746,22 +2703,24 @@ function addon:OnItemEnter(itemButton, motion)
 						if presets.boe:validate(nil, toon, bagId, slotId) then
 							local loc = ItemLocation:CreateFromBagAndSlot(bagId, slotId)
 							local itemLink = C_Item.GetItemName(loc)
-							if t[itemLink] then
-								t[itemLink] = t[itemLink] + 1
-							else
-								t[itemLink] = 1
+							if itemLink then
+								if t[itemLink] then
+									t[itemLink] = t[itemLink] + 1
+								else
+									t[itemLink] = 1
+								end
 							end
 						end
 					end
 					for k, v in pairs(t) do
-						GameTooltip:AddDoubleLine(k, v)
+						GTooltip:AddDoubleLine(k, v)
 					end
 					DevTools_Dump(t)
 					self:DelTable(t)
 				end
 			end
 		else
-			GameTooltip:SetText(L["Dragging an item here will add it to the list"])
+			GTooltip:SetText(L["Dragging an item here will add it to the list"])
 		end
 	elseif section == "toons" then
 		local name = itemButton:GetAttribute('toon')
@@ -2769,41 +2728,41 @@ function addon:OnItemEnter(itemButton, motion)
 			local enabled = not self:IsIgnored(name)
 			local color1 = C.White
 			local color2 = enabled and GREEN_FONT_COLOR or RED_FONT_COLOR
-			GameTooltip:AddLine(toonTable[name].text)
-			GameTooltip:AddLine(toonTable[name].tooltip)
-			GameTooltip:AddDoubleLine(KEY_BUTTON1, enabled and DISABLE or ENABLE, color1.r, color1.g, color1.b, color2.r,
+			GTooltip:AddLine(toonTable[name].text)
+			GTooltip:AddLine(toonTable[name].tooltip)
+			GTooltip:AddDoubleLine(KEY_BUTTON1, enabled and DISABLE or ENABLE, color1.r, color1.g, color1.b, color2.r,
 				color2.g, color2.b)
-			GameTooltip:AddLine(L["Disabled toons will not appear in any list"], C:Orange())
-			GameTooltip:AddDoubleLine(KEY_BUTTON2, REMOVE, color1.r, color1.g, color1.b, RED_FONT_COLOR.r,
+			GTooltip:AddLine(L["Disabled toons will not appear in any list"], C:Orange())
+			GTooltip:AddDoubleLine(KEY_BUTTON2, REMOVE, color1.r, color1.g, color1.b, RED_FONT_COLOR.r,
 				RED_FONT_COLOR.g, RED_FONT_COLOR.b)
-			GameTooltip:AddLine(L["Use to remove deleted toons"], C:Orange())
-			GameTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1, L["Edit"], color1.r, color1.g, color1.b,
+			GTooltip:AddLine(L["Use to remove deleted toons"], C:Orange())
+			GTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. '-' .. KEY_BUTTON1, L["Edit"], color1.r, color1.g, color1.b,
 				C:Yellow())
-			GameTooltip:AddLine(L["You can adjust class, level, faction and tradeskills"], C:Orange())
+			GTooltip:AddLine(L["You can adjust class, level, faction and tradeskills"], C:Orange())
 		end
 	elseif section == "drop" then
-		GameTooltip:AddLine(L["Temporary item slot"], C:Green())
+		GTooltip:AddLine(L["Temporary item slot"], C:Green())
 		local itemlink = itemButton:GetAttribute('itemlink')
 		if itemlink then
-			GameTooltip:SetHyperlink(itemlink)
+			GTooltip:SetHyperlink(itemlink)
 		end
-		GameTooltip:AddLine(L["Items dropped here can be redropped everywhere"])
-		GameTooltip:AddLine(KEY_BUTTON2 .. " " .. L["clears the slot"])
+		GTooltip:AddLine(L["Items dropped here can be redropped everywhere"])
+		GTooltip:AddLine(KEY_BUTTON2 .. " " .. L["clears the slot"])
 	elseif section == "presets" then
 		local itemlink = itemButton:GetAttribute('itemlink')
-		GameTooltip:AddLine(L["Click to add to current toon"], C:Green())
-		GameTooltip:AddLine(presets[itemlink].l)
+		GTooltip:AddLine(L["Click to add to current toon"], C:Green())
+		GTooltip:AddLine(presets[itemlink].l)
 	elseif section == "categories" then
 		local itemlink = itemButton:GetAttribute('itemlink')
-		GameTooltip:AddLine(L["Click to add to current toon"], C:Green())
-		GameTooltip:AddLine(itemlink)
+		GTooltip:AddLine(L["Click to add to current toon"], C:Green())
+		GTooltip:AddLine(itemlink)
 	end
 	--@debug@
-	GameTooltip:AddDoubleLine("Section", section, C:Silver())
-	GameTooltip:AddDoubleLine("Width", GameTooltip:GetWidth(), C:Silver())
+	GTooltip:AddDoubleLine("Section", section, C:Silver())
+	GTooltip:AddDoubleLine("Width", GTooltip:GetWidth(), C:Silver())
 	--@end-debug@
-	GameTooltip:SetWidth(500)
-	GameTooltip:Show()
+	GTooltip:SetWidth(500)
+	GTooltip:Show()
 end
 
 function addon:OnArrowsClick(this)
@@ -2855,21 +2814,21 @@ function addon:UpdateMailCommanderFrame()
 	if mcf.selectedTab == INEED then
 		--self:InitializeDropDown(mcf.filter)
 		addon:RenderPresets()
-		addon:RenderNeedBox(mcf)
+		addon:RenderNeedBox()
 		UIDropDownMenu_Initialize(mcf.Filter, function(...) self:InitializeDropDown(...) end);
 	elseif mcf.selectedTab == ISEND then
 		print(1, addon:GetFilter(), currentReceiver)
 		print(2, addon:GetFilter(), currentReceiver)
 		--self:InitializeDropDown(mcf.filter)
-		addon:RenderSendBox(mcf)
+		addon:RenderSendBox()
 		UIDropDownMenu_Initialize(mcf.Filter, function(...) self:InitializeDropDown(...) end);
 		print(3, addon:GetFilter(), currentReceiver)
 	elseif mcf.selectedTab == IFILTER then
-		addon:RenderFilterBox(mcf)
+		addon:RenderFilterBox()
 	elseif mcf.selectedTab == ICATEGORIES then
 		--self:InitializeDropDownForCats(mcf.filter)
 		addon:RenderPresets()
-		addon:RenderCategoryBox(mcf)
+		addon:RenderCategoryBox()
 		UIDropDownMenu_Initialize(mcf.Filter, function(...) self:InitializeDropDownForCats(...) end);
 	else
 		--@debug@
@@ -2902,8 +2861,10 @@ function addon:OnItemDropped(itemButton)
 	print(type, itemID, itemLink)
 	--local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount,itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(itemID)
 	if type == "item" then
+---@diagnostic disable-next-line: param-type-mismatch
 		if not itemLink then itemLink = select(2, GetItemInfo(itemID)) end
 	elseif type == "merchant" then
+---@diagnostic disable-next-line: param-type-mismatch
 		itemLink = GetMerchantItemLink(itemID)
 	else
 		return
@@ -3020,14 +2981,14 @@ function addon:Pickup(itemid)
 end
 
 function addon:OnAddCategoryEnter(this)
-	local tip = GameTooltip
+	local tip = GTooltip
 	tip:SetOwner(this, "ANCHOR_CURSOR")
 	tip:AddLine(L["Create a new custom category"])
 	tip:Show()
 end
 
 function addon:OnRemoveCategoryEnter(this)
-	local tip = GameTooltip
+	local tip = GTooltip
 	tip:SetOwner(this, "ANCHOR_CURSOR")
 	tip:AddLine(L["Remove a custom category"])
 	tip:Show()

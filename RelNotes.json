@@ -1,0 +1,194 @@
+{
+    "NOTES": {
+        "k020601": {
+            "major": "2",
+            "minor": "6",
+            "patch": "1",
+            "description": [
+                {
+                    "tag": "Rebuild",
+                    "info": "libraries upgrade"
+                }
+            ]
+        },
+        "k020600": {
+            "major": "2",
+            "minor": "6",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Toc",
+                    "info": "Updated to 11.0.0, 11.0.2"
+                }
+            ]
+        },
+        "k020501": {
+            "major": "2",
+            "minor": "5",
+            "patch": "1",
+            "description": [
+                {
+                    "tag": "Toc",
+                    "info": "Updated to 10.2.7"
+                }
+            ]
+        },
+        "k020405": {
+            "major": "2",
+            "minor": "4",
+            "patch": "5",
+            "description": [
+                {
+                    "tag": "Toc",
+                    "info": "Updated to 10.2.6"
+                }
+            ]
+        },
+        "k020200": {
+            "major": "2",
+            "minor": "2",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Toc",
+                    "info": "Updated to 10.0.7"
+                }
+            ]
+        },
+        "k020002": {
+            "major": "2",
+            "minor": "0",
+            "patch": "2",
+            "description": [
+                {
+                    "tag": "Fix",
+                    "info": "MailCommander\\MailCommander-2.0.1 90100.lua"
+                }
+            ]
+        },
+        "k020001": {
+            "major": "2",
+            "minor": "0",
+            "patch": "1",
+            "description": [
+                {
+                    "tag": "Fix",
+                    "info": "MailCommander\\MailCommander-2.0.0 90100.lua"
+                }
+            ]
+        },
+        "k020000": {
+            "major": "2",
+            "minor": "0",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Feature",
+                    "info": "now you can create custom categories"
+                }
+            ]
+        },
+        "k010001": {
+            "major": "1",
+            "minor": "0",
+            "patch": "1",
+            "description": [
+                {
+                    "tag": "Feature",
+                    "info": "8.3.0"
+                }
+            ]
+        },
+        "k010000": {
+            "major": "1",
+            "minor": "0",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Feature",
+                    "info": "8.2.5"
+                },
+                {
+                    "tag": "Fix",
+                    "info": "long standing bug, was trying to send bound bind on equip items"
+                }
+            ]
+        },
+        "k000911": {
+            "major": "0",
+            "minor": "9",
+            "patch": "11",
+            "description": [
+                {
+                    "tag": "Feature",
+                    "info": "8.2"
+                }
+            ]
+        },
+        "k000910": {
+            "major": "0",
+            "minor": "9",
+            "patch": "10",
+            "description": [
+                {
+                    "tag": "Fix",
+                    "info": "Lua error line 1704 attempt tp indes global 'StackSplitText' (a null value)"
+                }
+            ]
+        },
+        "k000904": {
+            "major": "0",
+            "minor": "9",
+            "patch": "4",
+            "description": [
+                {
+                    "tag": "Update",
+                    "info": "Updated boa tokens with 7.3 data"
+                }
+            ]
+        },
+        "k000900": {
+            "major": "0",
+            "minor": "9",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Feature",
+                    "info": "The add button is now always shown on the first page"
+                },
+                {
+                    "tag": "Fix",
+                    "info": "no longer count equipped bags as sendable items"
+                },
+                {
+                    "tag": "Fix",
+                    "info": "actually run sync scan when opening panels"
+                },
+                {
+                    "tag": "Feature",
+                    "info": "Costly operations moved to coroutine"
+                },
+                {
+                    "tag": "Fix",
+                    "info": "Restored drag and drop from from tradeskill windows"
+                },
+                {
+                    "tag": "Fix",
+                    "info": "Workaround to skip Blizzard confirmation when sending mail to toons on the same realm"
+                }
+            ]
+        }
+    },
+    "PARAGRAPHS": [
+        "Description"
+    ],
+    "TITLE": {
+        "addon": "me",
+        "title": "RELNOTES"
+    },
+    "WIKI": [
+        "Mail Commander allows you to define a per character list of needs which wil be displayed when you open the sendmail panel allowing you to send all requested items or just some of them.",
+        "You can make this selection permament, disabling some kind of items, or just cherry pick each time",
+        "You can also use the \"Send all\" button to have all enabled items sent with a single click"
+    ]
+}

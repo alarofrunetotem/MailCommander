@@ -1,9 +1,9 @@
 {
     "NOTES": {
-        "k020701": {
+        "k020702": {
             "major": "2",
             "minor": "7",
-            "patch": "1",
+            "patch": "2",
             "description": [
                 {
                     "tag": "Toc",
@@ -11,7 +11,7 @@
                 },
                 {
                     "tag": "Feature",
-                    "info": "Version 2.7.1"
+                    "info": "Version 2.7.2"
                 }
             ]
         },

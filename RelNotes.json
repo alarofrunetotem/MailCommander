@@ -1,5 +1,20 @@
 {
     "NOTES": {
+        "k020701": {
+            "major": "2",
+            "minor": "7",
+            "patch": "1",
+            "description": [
+                {
+                    "tag": "Toc",
+                    "info": "11.0.7"
+                },
+                {
+                    "tag": "Feature",
+                    "info": "Version 2.7.1"
+                }
+            ]
+        },
         "k020601": {
             "major": "2",
             "minor": "6",

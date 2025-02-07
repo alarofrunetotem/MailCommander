@@ -40,5 +40,5 @@ jobs:
 
       # once cloned, we just run the GitHub Action for the packager project
       - name: Package and release
-#        uses: BigWigsMods/packager@v2
-        uses: alarofrunetotem/packager@subdirs-checkout
+        uses: BigWigsMods/packager@v2
+        # uses: alarofrunetotem/packager@subdirs-checkout

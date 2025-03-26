@@ -1132,7 +1132,7 @@ function addon:applyDEBUG(value)
 end
 
 function addon:MigrateDatabase()
-	local DBVAR = GetAddOnMetadata("MailCommander", "X-Database")
+	local DBVAR = C_AddOns.GetAddOnMetadata("MailCommander", "X-Database")
 	self:Debug("Raw db var:", DBVAR)
 	local rawdb = _G[DBVAR]
 	local todb = self.db.global

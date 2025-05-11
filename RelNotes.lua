@@ -11,9 +11,9 @@ You can make this selection permament, disabling some kind of items, or just che
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
 self:HF_Paragraph('Release Notes')
-self:RelNotes(2,7,2,[[
+self:RelNotes(2,7,3,[[
 Toc: 11.0.7
-Feature: Version 2.7.2
+Feature: Version 2.7.3
 ]])
 self:RelNotes(2,6,1,[[
 Rebuild: libraries upgrade

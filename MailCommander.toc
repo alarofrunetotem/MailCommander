@@ -1,5 +1,5 @@
-## Interface: 110200, 110205
-## Interface-Mists: 50500, 50501
+## Interface: 110207, 120000, 120001
+## Interface-Mists: 50503
 ## Interface-Cata: 40401, 40402
 ## Title: MailCommander 2 @project-version@
 ## Notes: Manages items distribution between multiple toons

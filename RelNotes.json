@@ -1,5 +1,27 @@
 {
     "NOTES": {
+        "k021000": {
+            "major": "2",
+            "minor": "10",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Fix",
+                    "info": "error on start"
+                }
+            ]
+        },
+        "k020901": {
+            "major": "2",
+            "minor": "9",
+            "patch": "1",
+            "description": [
+                {
+                    "tag": "Fix",
+                    "info": "error on start"
+                }
+            ]
+        },
         "k020900": {
             "major": "2",
             "minor": "9",

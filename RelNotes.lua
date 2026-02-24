@@ -12,7 +12,7 @@ You can also use the "Send all" button to have all enabled items sent with a sin
 ]])
 self:HF_Paragraph('Release Notes')
 self:RelNotes(2,10,0,[[
-Fix: error on start
+Toc: 12.0.1
 ]])
 self:RelNotes(2,9,1,[[
 Fix: error on start

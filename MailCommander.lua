@@ -1,21 +1,17 @@
 local __FILE__ = tostring(debugstack(1, 2, 0):match("(.*):1:")) -- Always check line number in regexp and file
 --@debug@
 print("MC DEVLOP VERSION")
-print('WOW_PROJECT_ID',WOW_PROJECT_ID)
-print('WOW_PROJECT_MAINLINE',WOW_PROJECT_MAINLINE)
-print('WOW_PROJECT_CLASSIC',WOW_PROJECT_CLASSIC)
-print('WOW_PROJECT_BURNING_CRUSADE_CLASSIC',WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
-print('WOW_PROJECT_WRATH_CLASSIC',WOW_PROJECT_WRATH_CLASSIC)
+print('WOW_PROJECT_ID', WOW_PROJECT_ID)
+print('WOW_PROJECT_MAINLINE', WOW_PROJECT_MAINLINE)
+print('WOW_PROJECT_CLASSIC', WOW_PROJECT_CLASSIC)
+print('WOW_PROJECT_BURNING_CRUSADE_CLASSIC', WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
+print('WOW_PROJECT_WRATH_CLASSIC', WOW_PROJECT_WRATH_CLASSIC)
 --@end-debug@
 local me, ns = ...
-local pp = print
 --@debug@
 --Postal_BlackBookButton
 -- SendMailNameEditBox
 C_AddOns.LoadAddOn("Blizzard_DebugTools")
-C_AddOns.LoadAddOn("LibDebug")
-if LibDebug then LibDebug() end
-local print = _G.LibDebug and print or function(...) print("MCom", ...) end
 print('Debug version')
 --@end-debug@
 --[===[@non-debug@
@@ -28,7 +24,6 @@ assert(LibInit, me .. ": Missing LibInit, please reinstall")
 addon = LibStub("LibInit"):NewAddon(ns, me, { noswitch = false, profile = true, enhancedProfile = true }, "AceHook-3.0",
 	"AceEvent-3.0", "AceTimer-3.0", "AceBucket-3.0")
 --@debug@
-addon.debug = true
 addon:Debug("Started with debug enabled")
 --@end-debug@
 local C = addon:GetColorTable()
@@ -153,7 +148,7 @@ local dirty = true
 local shouldsend
 local oldshouldsend
 local DontSendNow = {}
-local sendable = {} -- For each toon, it's true if the current one has at least one object to send
+local sendable = {}  -- For each toon, it's true if the current one has at least one object to send
 local toonTable = {} -- precaculated toon table for initDropDown to avoid bursting memory
 local toonIndex = {}
 local presets = {}
@@ -282,10 +277,8 @@ function Count:Stock(id, toon)
 end
 
 function Count:Sendable(id, toon)
-	local testid = -1
-	if id == testid then
-		DevTools_Dump { "Sendable", db.items[id] }
-	end
+	addon:Debug("Sendable", id, toon, db.items[id])
+	if (db.items[id].bop and not db.items[id].boa) then return 0 end
 	if not toon then toon = currentToon() end
 	if not Count:CanSendMail(toon) then
 		local boa = (id == 'boatoken') or (db.items[id].boa)
@@ -296,24 +289,19 @@ function Count:Sendable(id, toon)
 	local reserved = Count:Reserved(id)
 	local sending = Count:Sending(id)
 	local cap = Count:Cap(id, toon)
-	if id == testid then
-		print('totalwithbank', totalWB)
-		addon:Debug('total', total)
-		addon:Debug('reserved', reserved)
-		addon:Debug('sending', sending)
-		addon:Debug('cap', cap)
-	end
 	return math.min(totalWB - reserved + sending, math.min(total, cap))
 end
 
 function Count:IsSendable(id, idInBag, toon, bagId, slotId)
+	addon:Debug("IsSendable", id, idInBag, toon, bagId, slotId)
 	if not toon then toon = currentToon() end
 	if presets[id] and type(presets[id].validate) == "function" then
 		return presets[id]:validate(idInBag, toon, bagId, slotId)
 	else
-		local boa = I:IsBoa(C_Container.GetContainerItemLink(bagId, slotId))
-		if not Count:CanSendMail(toon) and not boa then return false end
-		return id == idInBag
+		local bop = I:IsBop(C_Container.GetContainerItemLink(bagId, slotId))
+		if bop then return false end
+		return Count:CanSendMail(toon)
+		-- return id == idInBag
 	end
 end
 
@@ -454,7 +442,7 @@ local basepresets = { --#basepresets
 				end
 			end
 		end,
-		
+
 		res = false,
 		cap = L['Maximum Level'],
 		keep = L['Minimum Level']
@@ -494,9 +482,9 @@ local undo = "Interface\\PaperDollInfoFrame\\UI-GearManager-Undo"
 local ignore = "Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Opaque"
 local ignore2 = "Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent"
 local KEY_BUTTON1 =
-"\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:228:283\124t"                     -- left mouse button
+"\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:228:283\124t" -- left mouse button
 local KEY_BUTTON2 =
-"\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:330:385\124t"                     -- right mouse button
+"\124TInterface\\TutorialFrame\\UI-Tutorial-Frame:12:12:0:0:512:512:10:65:330:385\124t" -- right mouse button
 --local HELP_ICON = "\124TInterface\AddOns\MailCommander\helpItems.tga:256:64\124t"
 local HELP_ICON = "\124TInterface\\AddOns\\MailCommander\\helpItems.tga:64:256\124t"
 local CTRL_KEY_TEXT, SHIFT_KEY_TEXT = CTRL_KEY_TEXT, SHIFT_KEY_TEXT
@@ -649,28 +637,28 @@ function addon:BAG_UPDATE_DELAYED(event, ...)
 end
 
 function addon:LOOT_OPENED(event, ...)
-	print(event, ...)
+	self:Debug(event, ...)
 end
 
 function addon:CHAT_MSG_LOOT(event, ...)
-	print(event, ...)
+	self:Debug(event, ...)
 end
 
 function addon:CHAT_MSG_CURRENCY(event, ...)
-	print(event, ...)
+	self:Debug(event, ...)
 end
 
 function addon:LOOT_CLOSED(event, ...)
-	print(event, ...)
+	self:Debug(event, ...)
 end
 
 function addon:PLAYER_MONEY(event, ...)
-	print(event, ...)
+	self:Debug(event, ...)
 	if mcf:IsVisible() then self:UpdateMailCommanderFrame() end
 end
 
 function addon:SetDbDefaults(default)
-	pp("Db defaults set")
+	self:Debug("Db defaults set")
 	default.global = {
 		categories = {},
 		items = {
@@ -824,11 +812,11 @@ function addon:CloseTip()
 end
 
 function addon:loadSelf(level)
-	local p1, p2 
+	local p1, p2
 	if ISCLASSIC then
-		p1,p2 = nil, nil
+		p1, p2 = nil, nil
 	else
-		p1,p2 = GetProfessions()
+		p1, p2 = GetProfessions()
 	end
 	thisFaction = UnitFactionGroup("player")
 	thisRealm = GetRealmName()
@@ -879,14 +867,15 @@ function addon:loadToonList()
 					data.class = data.class or UNKNOWN
 					data.localizedClass = data.localizedClass or UNKNOWN
 					data.level = data.level or maxLevel
-					print("Found and loaded toon: " .. name, data.class, data.localizedClass, data.level)
-					local success,classcolor = pcall(C_ClassColor.GetClassColor,data.class)
+					self:Debug("Found and loaded toon: " .. name, data.class, data.localizedClass, data.level)
+					local classData = RAID_CLASS_COLORS[data.class]
 					local colore
-					if success then
-						colore = classcolor:GenerateHexColorMarkup()
+					if classData then
+						-- Use colorStr if available for safety
+						colore = "|c" .. (classData.colorStr or "ff808080")
 					else
-						print("Failed to get class color for",data.class,classcolor)
-						colore = "|cff" .. C.Gray
+						-- Default to gray if class is not found
+						colore = "|c" .. "ff808080"
 					end
 					local pattern = "%s%s (%s %d)|r"
 					toonTable[name] = {
@@ -943,10 +932,10 @@ function addon:InitData()
 	-- ,'TRADE_SKILL_UPDATE'
 	self:RegisterBucketEvent({ 'PLAYER_SPECIALIZATION_CHANGED' }, 5, 'TRADE_SKILL_UPDATE')
 	self:RegisterEvent("PLAYER_LEVEL_UP")
----@diagnostic disable-next-line: undefined-field
+	---@diagnostic disable-next-line: undefined-field
 	self:SecureHookScript(_G.SendMailFrame, "OnShow", "OpenSender")
----@diagnostic disable-next-line: undefined-field
-self:SecureHookScript(_G.SendMailFrame, "OnHide", "CloseChooser")
+	---@diagnostic disable-next-line: undefined-field
+	self:SecureHookScript(_G.SendMailFrame, "OnHide", "CloseChooser")
 	SendMailMailButton:SetScript("PreClick", function()
 		mailRecipient = SendMailNameEditBox:GetText()
 	end)
@@ -955,7 +944,7 @@ self:SecureHookScript(_G.SendMailFrame, "OnHide", "CloseChooser")
 	self:RegisterEvent("UPDATE_PENDING_MAIL", "MailEvent")
 	--@end-debug@
 	mcf = CreateFrame("Frame", "MailCommanderFrame", UIParent, "MailCommander")
-	mcf.HookOpenAllBags = function(self, ...) print("MCFHOOK", self, ...) end
+	mcf.HookOpenAllBags = function(self, ...) self:Debug("MCFHOOK", self, ...) end
 	self:SetAdditional()
 	self.xdb = db
 	self:loadHelp()
@@ -992,10 +981,6 @@ end
 function addon:ApplyMINLEVEL(value)
 	self:loadToonList()
 	if MailCommanderFrame:IsVisible() then self:UpdateMailCommanderFrame() end
-end
-
-function addon:OnEnabled()
-	self:Notice("Called OnEnable")
 end
 
 local presetsMeta = {
@@ -1057,21 +1042,22 @@ end
 
 function addon:OnInitializedContinue()
 	--@end-alpha@
-	--@debug@
-	self.db.debug = true
-	--@end-debug@
 	realmkey = GetRealmName()
 	local r = GetAutoCompleteRealms()
 	if #r then
 		table.sort(r)
 		realmkey = strconcat(unpack(r))
 	end
+	print("self.db.global.debug", self.db.global.debug)
+	print("self.db.debug", self.db.debug)
+	print("self.debug", self.debug)
 	self:Debug("Realmkey", realmkey)
 	local dbversion = self.db.global.dbversion or 1
 	if dbversion == 1 then
 		if self:MigrateDatabase() then
 			self:Popup(
-			C("Mailcommander", "Orange") .. "\n" .. L["Mailcommander just migrated its database and will reload Wow"], 0,
+				C("Mailcommander", "Orange") .. "\n" .. L
+				["Mailcommander just migrated its database and will reload Wow"], 0,
 				ReloadUI)
 			return
 		end
@@ -1110,17 +1096,19 @@ function addon:OnInitializedContinue()
 	self:AddBoolean("ALLSEND", false, format(L["Show all characters in %s tab"], SEND),
 		L["Show all toons regardless if they have items to send or not"])
 	self:AddBoolean("ALLFACTIONS", false, L["Show characters from both factions"], L
-	["Show all toons fromj all factions"])
+		["Show all toons fromj all factions"])
 	self:AddBoolean("ALLREALMS", false, L["Show characters from all realms"], L["Show all toons from all realms"])
 	self:AddLabel(L["Data management"])
 	self:AddAction("Reset", L["Erase all stored data. Think twice"])
 	--@debug@
 	self:AddLabel(L["Debug Options"])
 	self:AddBoolean("DRY", false, "Disable mail sending")
-	self:AddBoolean("DEBUG", false, "Shows debug messages")
 	--@end-debug@
 	if false then
-		self:coroutineExecute(0.001, "InitData", true)
+		local id = self:coroutineExecute(0.001, "InitData", true)
+		self:coroutineOnEnd(id, function()
+			addon:Debug("InitData done")
+		end)
 	else
 		self:InitData()
 	end
@@ -1184,7 +1172,7 @@ function addon:MigrateDatabase()
 			-- Loading request data
 
 			for _, data in pairs(fromdb.requests[toon] or empty) do
-				print(data.i, data.l)
+				self:Debug(data.i, data.l)
 
 				-- storing general item
 				todb.items[data.i] = {
@@ -1193,7 +1181,7 @@ function addon:MigrateDatabase()
 				}
 				-- now on toon we just store id with forbidden guys (as a concatenated string)
 				todb.toons[toon].requests[data.i] = true
-				print(toon, data.i, todb.toons[toon].requests[data.i])
+				self:Debug(toon, data.i, todb.toons[toon].requests[data.i])
 			end
 			-- Loading caps
 			for id, qt in pairs(fromdb.cap[toon] or empty) do
@@ -1333,6 +1321,7 @@ function addon:OpenConfig(tab)
 end
 
 function addon:OpenSender(tab)
+	self:Debug("OpenSender", tab)
 	if SendMailFrame:IsVisible() then
 		PanelTemplates_EnableTab(mcf, ISEND)
 	else
@@ -1440,7 +1429,10 @@ function addon:RefreshSendable(sync)
 	if sync then
 		return self:doRefreshSendable()
 	else
-		self:coroutineExecute(0.01, "doRefreshSendable")
+		local id = self:coroutineExecute(0.01, "doRefreshSendable")
+		self:coroutineOnEnd(id, function()
+			addon:Debug("doRefreshSendable done")
+		end)
 	end
 end
 
@@ -1453,7 +1445,7 @@ function addon:doRefreshSendable(dbg)
 			for i, d in pairs(toonData.requests) do
 				if not addon:IsDisabled(i, toon) then
 					if Count:Sendable(i, toon) > 0 then
-						if dbg then pp("       ", db.items[i].l, "GOT!") end
+						self:Debug("       ", db.items[i], "GOT!")
 						sendable[toon] = sendable[toon] or {}
 						tinsert(sendable[toon], i)
 						shouldsend = true
@@ -1463,6 +1455,7 @@ function addon:doRefreshSendable(dbg)
 			end
 		end
 	end
+	self:Debug("sendable", sendable)
 	ldb:Update()
 end
 
@@ -1478,7 +1471,7 @@ function addon:InitializeDropDownForCats(this, level, menulist)
 	info.isTitle = nil
 	info.disabled = nil
 	local current = currentCategory
-	print("Initializing dropdown for categories", current)
+	self:Debug("Initializing dropdown for categories", current)
 	UIDropDownMenu_SetText(mcf.Filter, currentCategory or NONE)
 	for name, data in pairs(dbcategory) do
 		if not current then
@@ -1677,7 +1670,7 @@ function addon:RenderCategoryBox()
 	mcf.RemoveCategory:Show()
 	mcf.NameText:SetText(L["Item categories"])
 	mcf:SetAttribute("section", "items")
-	print("currentCategory", currentCategory, NONAME, currentCategory ~= NONAME)
+	self:Debug("currentCategory", currentCategory, NONAME, currentCategory ~= NONAME)
 	if currentCategory and currentCategory ~= NONAME then
 		self:RenderButtonList(dbcategory[currentCategory].list)
 	else
@@ -1777,8 +1770,8 @@ function addon:OnHelpEnter(this)
 		tip:AddLine(L["From this panel you can send requested items"], C:Green())
 		tip:AddLine(L["Items that you dont have are not shown"], C:Green())
 		tip:AddLine(
-		format(L["Use \"%s\" button to send all items at once (max %d items at a time)"], L["Send All"],
-			ATTACHMENTS_MAX_SEND), C:Silver())
+			format(L["Use \"%s\" button to send all items at once (max %d items at a time)"], L["Send All"],
+				ATTACHMENTS_MAX_SEND), C:Silver())
 	elseif currentTab == IFILTER then
 		tip:AddLine(L["Mail Commander character selection"], C:Orange())
 		tip:AddLine(L["You can selectively disable character"], C:Green())
@@ -1807,10 +1800,10 @@ function addon:SetLimit(itemInBag, dbg)
 	local cap = cap(toon, itemInBag) - stock
 	local qt = GetItemCount(itemInBag, false) - keep - bags[itemInBag]
 	if dbg then
-		print("stock", stock)
-		print("keep", keep, thisToon)
-		print("cap", cap, toon)
-		print("qt", qt)
+		self:Debug("stock", stock)
+		self:Debug("keep", keep, thisToon)
+		self:Debug("cap", cap, toon)
+		self:Debug("qt", qt)
 	end
 	if qt > cap then
 		qt = cap
@@ -1819,7 +1812,7 @@ function addon:SetLimit(itemInBag, dbg)
 		qt = 0
 	end
 	if dbg then
-		print("qt2", qt)
+		self:Debug("qt2", qt)
 	end
 	tobesent[itemInBag] = qt
 end
@@ -1835,13 +1828,13 @@ local function DeleteToon(popup, toon)
 		end
 	end
 	currentRequester = NONAME
-	print("LoadToonList")
+	self:Debug("LoadToonList")
 	addon:loadToonList()
-	print("UpdateMailCommanderFrame")
+	self:Debug("UpdateMailCommanderFrame")
 	addon:UpdateMailCommanderFrame()
 end
 function addon:OnDeleteClick(this, button)
----@diagnostic disable-next-line: redefined-local
+	---@diagnostic disable-next-line: redefined-local
 	local info = rawget(db.toons, currentRequester)
 	if info then
 		self:Popup(C("Mailcommander", "Orange") .. "\n" .. format(L["Do you want to delete\n%s?"], info.text), DeleteToon,
@@ -1856,12 +1849,14 @@ local function FillMailSlot(bag, slot)
 	else
 		C_Container.UseContainerItem(bag, slot)
 	end
+	addon:Debug("FillMailSlot", bag, slot, count, locked)
 end
 function addon:Mail(itemId)
 	checkBags()
 	if not itemId then
 		SendMailMoneyGold:SetText('')
 	end
+	self:Debug("Mail", itemId)
 	return self:SearchItem(itemId)
 end
 
@@ -1889,7 +1884,6 @@ function addon:SearchItem(itemId)
 	wipe(needed)
 	local toon = currentReceiver
 	local connected = Count.connectedRealm[toon]
-	--DevTools_Dump({'requests',db.toons[toon].requests})
 	for id, enabled in pairs(db.toons[toon].requests) do
 		local idata = db.items[id]
 		if not self:IsDisabled(id, toon) and (not itemId or itemId == id) and (connected or idata.boa and db.toons[toon].boa) then
@@ -1907,14 +1901,13 @@ function addon:SearchItem(itemId)
 			end
 		end
 	end
-	--DevTools_Dump({'needed',needed})
+	self:Debug("needed", needed)
 	for bagId, slotId in Bags() do
 		local itemLink = C_Container.GetContainerItemLink(bagId, slotId)
 		if itemLink then
 			local id = parseLink(itemLink)
 			if id then
 				local n = GetContainerItemInfo(bagId, slotId)
-				print("Check", bagId, slotId, n, itemLink, C_Container.GetContainerItemInfo(bagId, slotId))
 				local GotIt = false
 				if needed[id] then
 					--self:Debug("Counting",id,itemLink)
@@ -1935,6 +1928,7 @@ function addon:SearchItem(itemId)
 			end
 		end
 	end
+	self:Debug("sortable", sortable)
 	if Count:Sendable('gold', toon) then
 		SendGold()
 	end
@@ -1949,9 +1943,7 @@ function addon:SearchItem(itemId)
 			local itemLink = C_Container.GetContainerItemLink(bagId, slotId)
 			if tobesent[itemId] > 0 then
 				qt = 10000 - tonumber(qt)
-				self:Debug(itemLink, qt, tobesent[itemId])
 				if qt == tobesent[itemId] then
-					self:Debug("moved=", self:MoveItemToSendBox(itemId, tonumber(bagId), tonumber(slotId), qt))
 					--self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
 					tobesent[itemId] = 0
 				end
@@ -1962,7 +1954,6 @@ function addon:SearchItem(itemId)
 			if tobesent[itemId] > 0 then
 				qt = 10000 - tonumber(qt)
 				if qt > tobesent[itemId] then
-					self:Debug("moved>", self:MoveItemToSendBox(itemId, tonumber(bagId), tonumber(slotId), qt))
 					--self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
 					tobesent[itemId] = 0
 				end
@@ -1972,12 +1963,12 @@ function addon:SearchItem(itemId)
 			local qt, itemId, bagId, slotId = strsplit(":", sortable[i])
 			if tobesent[itemId] > 0 then
 				qt = 10000 - tonumber(qt)
-				self:Debug("moved", self:MoveItemToSendBox(itemId, tonumber(bagId), tonumber(slotId), qt))
 				--self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
 				tobesent[itemId] = tobesent[itemId] - qt
 			end
 		end
 	end
+	self:Debug("tobesent", tobesent)
 	local fine = GetTimePreciseSec()
 	self:Debug("New Took ", fine - start)
 end
@@ -1994,6 +1985,8 @@ function addon:NormalSearchItem(itemId)
 	local toon = currentReceiver
 	for bagId, slotId in Bags() do
 		local bagItemId = C_Container.GetContainerItemID(bagId, slotId)
+		local itemLink = C_Container.GetContainerItemLink(bagId, slotId)
+		self:Debug("itemLink", itemLink)
 		if bagItemId then
 			self:Debug(bagId, slotId, itemId, bagItemId)
 			if itemId then
@@ -2098,6 +2091,7 @@ function addon:MoveItemToSendBox(itemId, bagId, slotId, qt)
 end
 
 function addon:FireMail(this)
+	self:Debug("FireMail started", this)
 	if this then
 		this:Disable()
 	end
@@ -2107,15 +2101,19 @@ function addon:FireMail(this)
 	if this or not header or header == "" then
 		header = L["Mail Commander Bulk Mail"]
 	end
+	self:Debug("FireMail header", header)
+	self:Debug("ATTACHMENTS_MAX_SEND", ATTACHMENTS_MAX_SEND)
 	for i = 1, ATTACHMENTS_MAX_SEND do
 		--name, itemId,textureid, count, quality = GetSendMailItem(index)
 		local name, _, _, count = GetSendMailItem(i)
+		self:Debug("FireMail item", i, name, count)
 		if name then
 			body = body .. name .. " x " .. count .. "\n"
 			sent = sent + 1
 		end
 	end
 	local sentGold = tonumber(SendMailMoneyGold:GetText()) or 0
+	self:Debug("FireMail gold check", sent, sentGold)
 	if sent + sentGold > 0 then
 		SendMailSubjectEditBox:SetText(header)
 		mailRecipient = currentReceiver
@@ -2151,13 +2149,14 @@ function addon:OnSendClick(this, button)
 		return
 	end
 	local sent = 1
-	print(UIDropDownMenu_GetText(mcf.Filter))
+	self:Debug(UIDropDownMenu_GetText(mcf.Filter))
 	checkBags()
 	for i = 1, ATTACHMENTS_MAX_SEND do
 		if GetSendMailItem(i) then sent = i end
 	end
 	SendMailNameEditBox:SetText("working")
 	self:Mail()
+	self:Debug("FireMail staded", this)
 	self:ScheduleTimer("FireMail", 1, this)
 end
 
@@ -2281,7 +2280,7 @@ function addon:AddCustomToon(name)
 	local toon = db.toons[name]
 	if toon.text then
 		self:Popup(C("Mailcommander", "Orange") ..
-		"\n" .. name .. ' ' .. L['already present in database'] .. ': ' .. toon.text)
+			"\n" .. name .. ' ' .. L['already present in database'] .. ': ' .. toon.text)
 	else
 		self:ShowExtraToon(name)
 	end
@@ -2319,9 +2318,9 @@ end
 
 function addon:DumpToon(toon, id)
 	if id then
-		print("Monitoring", GetItemInfo(id), GetItemCount(id), math.floor(GetMoney() / 10000))
+		self:Debug("Monitoring", GetItemInfo(id), GetItemCount(id), math.floor(GetMoney() / 10000))
 	else
-		print("Monitoring", math.floor(GetMoney() / 10000))
+		self:Debug("Monitoring", math.floor(GetMoney() / 10000))
 	end
 end
 
@@ -2365,7 +2364,7 @@ function addon:OnItemClicked(itemButton, button)
 		elseif button == "RightButton" then
 			return self:SetAdditional()
 		else
-			print("Che minchia di tasto e'?", button)
+			self:Debug("Che minchia di tasto e'?", button)
 		end
 		return
 	end
@@ -2390,7 +2389,8 @@ function addon:ClickedOnToon(itemButton, button)
 		return self:OnItemEnter(itemButton, button)
 	elseif button == "RightButton" then
 		return self:Popup(
-		C("Mailcommander", "Orange") .. "\n" .. format(L["Do you want to delete\n%s?"], toonTable[name].text), DeleteToon,
+			C("Mailcommander", "Orange") .. "\n" .. format(L["Do you want to delete\n%s?"], toonTable[name].text),
+			DeleteToon,
 			function() end, name)
 	end
 end
@@ -2428,17 +2428,18 @@ local function UpdateItemInfo(itemId)
 end
 function addon:RefreshItemlinks(...)
 	local refresher
-	self:Debug("Refreshlink start")
-	refresher = coroutine.wrap(function()
+	self:Debug("RefreshLink start", db.items)
+	local refresher = function()
 		for i, data in pairs(db.items) do
 			UpdateItemInfo(i)
-			--   C_Timer.After(0.001,refresher)
 			coroutine.yield(true)
 		end
-		addon:Debug("Refreshlink done")
+	end
+	local id = self:coroutineExecute(0.001, refresher)
+	self:coroutineOnEnd(id, function()
+		addon:Debug("RefreshLink done")
 		refresher = nil
 	end)
-	refresher()
 end
 
 function addon:GET_ITEM_INFO_RECEIVED(itemId, success)
@@ -2465,10 +2466,8 @@ local function SplitFunc(this, qt)
 	addon:UpdateMailCommanderFrame()
 end
 function addon:ShowSplitter(key, toon, itemButton, itemId, r, g, b)
-	self:Debug(key, toon, itemId)
 	local msg
 	local data = key == "res" and "keep" or key
-	self:Debug(key, toon, itemId, data)
 	if type(itemId) == "string" then
 		local tab = presets[itemId]
 		if tab.nosplit then return end
@@ -2523,7 +2522,7 @@ function addon:ClickedOnItem(itemButton, button)
 		if button == "RightButton" then
 			dbcategory[currentCategory].list[itemId] = nil
 		elseif button == "LeftButton" then
-			print("Trying to set icon to itemid", itemId, "for", currentCategory)
+			self:Debug("Trying to set icon to itemid", itemId, "for", currentCategory)
 			dbcategory[currentCategory].t = db.items[itemId].t
 		end
 		self:RenderPresets()
@@ -2590,18 +2589,18 @@ function addon:ClickedOnItem(itemButton, button)
 end
 
 function addon:OnResetEnter(itemButton, motion)
----@diagnostic disable-next-line: param-type-mismatch
+	---@diagnostic disable-next-line: param-type-mismatch
 	GTooltip:SetOwner(itemButton, "ANCHOR_RIGHT")
----@diagnostic disable-next-line: param-type-mismatch
+	---@diagnostic disable-next-line: param-type-mismatch
 	GTooltip:AddLine(RESET .. " " .. itemButton.Text:GetText())
----@diagnostic disable-next-line: param-type-mismatch
+	---@diagnostic disable-next-line: param-type-mismatch
 	GTooltip:Show()
 end
 
 function addon:OnDescEnter(frame)
----@diagnostic disable-next-line: param-type-mismatch
+	---@diagnostic disable-next-line: param-type-mismatch
 	GTooltip:SetOwner(frame, "ANCHOR_RIGHT")
----@diagnostic disable-next-line: param-type-mismatch
+	---@diagnostic disable-next-line: param-type-mismatch
 	GTooltip:AddLine("Prova")
 end
 
@@ -2658,24 +2657,26 @@ function addon:OnItemEnter(itemButton, motion)
 				else
 					GTooltip:AddDoubleLine(KEY_BUTTON1, (DontSendNow[itemId] and ENABLESEND or DISABLESEND),
 						self:TipColor(color1, DontSendNow[itemId]))
-					if disabled then GTooltip:AddLine(
-						format(L["Disabled items are not sent with \"%s\" button"], L["Send All"]), C:Orange()) end
+					if disabled then
+						GTooltip:AddLine(
+							format(L["Disabled items are not sent with \"%s\" button"], L["Send All"]), C:Orange())
+					end
 					GTooltip:AddDoubleLine(KEY_BUTTON2, L["Add to sendmail panel"], color1.r, color1.g, color1.b,
 						GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
 				end
 				GTooltip:AddLine("Settings for " .. toon, C:Orange())
 				if split then
----@diagnostic disable-next-line: param-type-mismatch
+					---@diagnostic disable-next-line: param-type-mismatch
 					GTooltip:AddDoubleLine(CTRL_KEY_TEXT .. ' - ' .. KEY_BUTTON1, keepMsg .. ' (Min)', color1.r,
-					color1.g, color1.b, C:Yellow())
----@diagnostic disable-next-line: param-type-mismatch
+						color1.g, color1.b, C:Yellow())
+					---@diagnostic disable-next-line: param-type-mismatch
 					GTooltip:AddDoubleLine(SHIFT_KEY_TEXT .. ' - ' .. KEY_BUTTON1, capMsg .. ' (Max)', color1.r,
-					color1.g, color1.b, C:Green())
----@diagnostic disable-next-line: param-type-mismatch
+						color1.g, color1.b, C:Green())
+					---@diagnostic disable-next-line: param-type-mismatch
 					GTooltip:AddDoubleLine("Min:", keep(toon, itemId), C.White.r, C.White.g, C.White.b, C:Yellow())
----@diagnostic disable-next-line: param-type-mismatch
+					---@diagnostic disable-next-line: param-type-mismatch
 					GTooltip:AddDoubleLine("Max:", cap(toon, itemId) == CAP and 'N/A' or cap(toon, itemId), C.White.r,
-					C.White.g, C.White.b, C:Green())
+						C.White.g, C.White.b, C:Green())
 				end
 				local qt = GetItemCount(itemId) - bags[itemId]
 				if info then qt = Count:Sendable(itemId, toon) end
@@ -2806,7 +2807,7 @@ function addon:OnTabClick(tab)
 	else
 		self:StopTooltips()
 	end
-	print("tabclick", tab)
+	self:Debug("tabclick", tab)
 	self:UpdateMailCommanderFrame()
 end
 
@@ -2817,12 +2818,8 @@ function addon:UpdateMailCommanderFrame()
 		addon:RenderNeedBox()
 		UIDropDownMenu_Initialize(mcf.Filter, function(...) self:InitializeDropDown(...) end);
 	elseif mcf.selectedTab == ISEND then
-		print(1, addon:GetFilter(), currentReceiver)
-		print(2, addon:GetFilter(), currentReceiver)
-		--self:InitializeDropDown(mcf.filter)
 		addon:RenderSendBox()
 		UIDropDownMenu_Initialize(mcf.Filter, function(...) self:InitializeDropDown(...) end);
-		print(3, addon:GetFilter(), currentReceiver)
 	elseif mcf.selectedTab == IFILTER then
 		addon:RenderFilterBox()
 	elseif mcf.selectedTab == ICATEGORIES then
@@ -2832,15 +2829,15 @@ function addon:UpdateMailCommanderFrame()
 		UIDropDownMenu_Initialize(mcf.Filter, function(...) self:InitializeDropDownForCats(...) end);
 	else
 		--@debug@
-		print("Invalid tab", mcf.selectedTab)
+		self:Debug("Invalid tab", mcf.selectedTab)
 		--@end-debug@
 		return
 	end
 end
 
 function addon:LoadItem(itemButton, itemLink, store, index)
-	print(itemButton, itemLink, store, index)
-	if (not I:IsBop(itemLink)) then
+	self:Debug(itemButton, itemLink, store, index)
+	if not I:IsBop(itemLink) and true then
 		local itemID = self:GetItemID(itemLink)
 		store[itemID] = true
 		if not db.items[itemID] then
@@ -2851,20 +2848,26 @@ function addon:LoadItem(itemButton, itemLink, store, index)
 		self:RefreshSendable(true)
 		dirty = true
 	else
-		self:Popup(C("Mailcommander", "Orange") .. "\n" .. L["You cant mail soulbound items"])
+		self:Popup(C("Mailcommander", "Orange") .. "\n" .. L["You cant mail soulbound items!"])
 	end
 end
 
 function addon:OnItemDropped(itemButton)
 	dirty = true
 	local type, itemID, itemLink = GetCursorInfo()
-	print(type, itemID, itemLink)
+	self:Debug(type, itemID, itemLink)
 	--local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount,itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(itemID)
 	if type == "item" then
----@diagnostic disable-next-line: param-type-mismatch
+		---@diagnostic disable-next-line: param-type-mismatch
 		if not itemLink then itemLink = select(2, GetItemInfo(itemID)) end
+		self:Debug("itemLink", itemLink, 'added', I:IsBop(itemLink))
+		if I:IsBop(itemLink) then
+			self:Popup(C("Mailcommander", "Orange") .. "\n" .. L["You cant mail soulbound items!"])
+			ClearCursor()
+			return
+		end
 	elseif type == "merchant" then
----@diagnostic disable-next-line: param-type-mismatch
+		---@diagnostic disable-next-line: param-type-mismatch
 		itemLink = GetMerchantItemLink(itemID)
 	else
 		return
@@ -2885,8 +2888,6 @@ function addon:OnItemDropped(itemButton)
 	else
 		return
 	end
-	if currentTab == INEED or currentTab == ICATEGORIES then
-	end
 	self:UpdateMailCommanderFrame()
 end
 
@@ -2903,42 +2904,42 @@ function addon:Reset(input, ...)
 end
 
 function addon:a1(tip, link)
-	print("a1")
+	self:Debug("a1")
 	return self:attachItemTooltip(tip, link)
 end
 
 function addon:a2(tip, link)
-	print("a2")
+	self:Debug("a2")
 	return self:attachItemTooltip(tip, link)
 end
 
 function addon:a3(tip, link)
-	print("a3")
+	self:Debug("a3")
 	return self:attachItemTooltip(tip, link)
 end
 
 function addon:a4(tip, link)
-	print("a4")
+	self:Debug("a4")
 	return self:attachItemTooltip(tip, link)
 end
 
 function addon:a5(tip, link)
-	print("a5")
+	self:Debug("a5")
 	return self:attachItemTooltip(tip, link)
 end
 
 function addon:a6(tip, link)
-	print("a6")
+	self:Debug("a6")
 	return self:attachItemTooltip(tip, link)
 end
 
 function addon:a7(tip, link)
-	print("a7")
+	self:Debug("a7")
 	return self:attachItemTooltip(tip, link)
 end
 
 function addon:a8(tip, link)
-	print("a8")
+	self:Debug("a8")
 	return self:attachItemTooltip(tip, link)
 end
 
@@ -2974,7 +2975,7 @@ end
 function addon:Pickup(itemid)
 	if mcf:IsVisible() and mcf.selectedTab == INEED then
 		if currentID and not GetCursorInfo() then
-			print(currentID)
+			self:Debug(currentID)
 			PickupItem(currentID)
 		end
 	end
@@ -3003,7 +3004,8 @@ local function DeleteCategory(self, category)
 	addon:UpdateMailCommanderFrame()
 end
 function addon:ShowRemoveCategory()
-	self:Popup(C("Mailcommander", "Orange") .. "\n" .. L["Are you sure you want to remove '%s'?"]:format(currentCategory),
+	self:Popup(
+		C("Mailcommander", "Orange") .. "\n" .. L["Are you sure you want to remove '%s'?"]:format(currentCategory),
 		3600, DeleteCategory, true, currentCategory)
 end
 
@@ -3118,7 +3120,7 @@ function addon:BuildAddItemid()
 	-- Custom static popup
 	StaticPopupDialogs[name] = {
 		text = C("Mailcommander", "Orange") ..
-		"\n\n" .. L["You can directly enter an itemid to be loaded in the temporary slot"],
+			"\n\n" .. L["You can directly enter an itemid to be loaded in the temporary slot"],
 		button1 = ADD,
 		button2 = CANCEL,
 		hasEditBox = 1,
@@ -3164,8 +3166,10 @@ function addon:AddCustomItemid(itemid)
 		end)
 	else
 		C_Timer.After(0.1,
-			function() addon:Popup(C("MailCommander", "Orange") ..
-				"\n\n" .. '"' .. tostring(itemid) .. '" ' .. L["not found"]) end)
+			function()
+				addon:Popup(C("MailCommander", "Orange") ..
+					"\n\n" .. '"' .. tostring(itemid) .. '" ' .. L["not found"])
+			end)
 	end
 end
 
@@ -3194,7 +3198,11 @@ function addon:LoadProfessions()
 			tsort(professions)
 		end
 
-		self:coroutineExecute(0.05, load)
+		local id = self:coroutineExecute(0.05, load)
+		self:coroutineOnEnd(id, function()
+			addon:Debug("LoadProfessions done")
+			load = nil
+		end)
 	end
 end
 

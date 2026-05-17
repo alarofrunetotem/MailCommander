@@ -57,7 +57,7 @@ local MONEY = MONEY
 local ITEM_BNETACCOUNTBOUND = ITEM_BNETACCOUNTBOUND
 local toc = select(4, GetBuildInfo())
 local ISCLASSIC = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE
-local NUM_BAG_SLOTS = NUM_BAG_SLOTS or NUM_TOTAL_BAG_FRAMES
+local NUM_BAG_SLOTS = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or NUM_TOTAL_BAG_FRAMES
 local function keep(toon, id)
 	if not toon then return 0 end
 	return (legacy and db.keep[toon][id] or db.toons[toon].keep[id]) or 0

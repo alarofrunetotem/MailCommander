@@ -52,7 +52,7 @@ local MONEY = MONEY
 local ITEM_BNETACCOUNTBOUND = ITEM_BNETACCOUNTBOUND
 local toc = select(4, GetBuildInfo())
 local ISCLASSIC = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE
-local NUM_BAG_SLOTS = NUM_BAG_SLOTS or NUM_TOTAL_BAG_FRAMES
+local NUM_BAG_SLOTS = NUM_TOTAL_BAG_FRAMES
 local function keep(toon, id)
 	if not toon then return 0 end
 	return (legacy and db.keep[toon][id] or db.toons[toon].keep[id]) or 0
@@ -938,6 +938,7 @@ function addon:InitData()
 	self:SecureHookScript(_G.SendMailFrame, "OnHide", "CloseChooser")
 	SendMailMailButton:SetScript("PreClick", function()
 		mailRecipient = SendMailNameEditBox:GetText()
+		addon:Debug("PreClick", mailRecipient)
 	end)
 	--@debug@
 	self:RegisterEvent("MAIL_INBOX_UPDATE", "MailEvent")
@@ -1910,21 +1911,30 @@ function addon:SearchItem(itemId)
 				local n = GetContainerItemInfo(bagId, slotId)
 				local GotIt = false
 				if needed[id] then
-					--self:Debug("Counting",id,itemLink)
+					self:Debug("Counting", id, itemLink)
 					tobesent[id] = Count:Sendable(id, toon)
 					GotIt = true
 				elseif needed.boatoken then
 					if presets.boatoken:validate(id, toon, bagId, slotId, true) then
 						tobesent[id] = Count:Sendable(id, toon)
+						self:Debug("Counting", id, itemLink)
 						GotIt = true
 					end
 				elseif needed.boe then
 					if presets.boe:validate(id, toon, bagId, slotId) then
 						tobesent[id] = Count:Sendable(id, toon)
+						self:Debug("Counting", id, itemLink)
 						GotIt = true
 					end
 				end
-				if GotIt then tinsert(sortable, format("%05d:%s:%s:%s", 10000 + bags[id] - n, id, bagId, slotId)) end
+				if GotIt then
+					tinsert(sortable, format("%05d:%s:%s:%s", 10000 + bags[id] - n, id, bagId, slotId))
+					self:Debug("Added to sortable", id, itemLink, n, tobesent[id], GotIt)
+				else
+					self:Debug("Not counting", id, itemLink)
+				end
+			else
+				self:Debug("No itemid  found for", itemLink)
 			end
 		end
 	end
@@ -1944,7 +1954,7 @@ function addon:SearchItem(itemId)
 			if tobesent[itemId] > 0 then
 				qt = 10000 - tonumber(qt)
 				if qt == tobesent[itemId] then
-					--self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+					self:MoveItemToSendBox(itemId, tonumber(bagId), tonumber(slotId), qt)
 					tobesent[itemId] = 0
 				end
 			end
@@ -1954,7 +1964,7 @@ function addon:SearchItem(itemId)
 			if tobesent[itemId] > 0 then
 				qt = 10000 - tonumber(qt)
 				if qt > tobesent[itemId] then
-					--self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+					self:MoveItemToSendBox(itemId, tonumber(bagId), tonumber(slotId), qt)
 					tobesent[itemId] = 0
 				end
 			end
@@ -1963,12 +1973,12 @@ function addon:SearchItem(itemId)
 			local qt, itemId, bagId, slotId = strsplit(":", sortable[i])
 			if tobesent[itemId] > 0 then
 				qt = 10000 - tonumber(qt)
-				--self:MoveItemToSendBox(itemId,tonumber(bagId),tonumber(slotId),qt)
+				self:MoveItemToSendBox(itemId, tonumber(bagId), tonumber(slotId), qt)
 				tobesent[itemId] = tobesent[itemId] - qt
 			end
 		end
 	end
-	self:Debug("tobesent", tobesent)
+	self:Debug("tobesent", #tobesent, tobesent)
 	local fine = GetTimePreciseSec()
 	self:Debug("New Took ", fine - start)
 end
@@ -2156,7 +2166,7 @@ function addon:OnSendClick(this, button)
 	end
 	SendMailNameEditBox:SetText("working")
 	self:Mail()
-	self:Debug("FireMail staded", this)
+	self:Debug("FireMail started", this)
 	self:ScheduleTimer("FireMail", 1, this)
 end
 
@@ -2508,6 +2518,7 @@ function addon:ClickedOnItem(itemButton, button)
 	local shift, ctrl, alt = IsShiftKeyDown(), IsControlKeyDown(), IsAltKeyDown()
 	local itemLink = itemButton:GetAttribute("itemlink")
 	local itemId = parseLink(itemLink)
+	self:Debug("ClickedOnItem", itemLink, itemId)
 	local toon = currentTab == INEED and currentRequester or currentReceiver
 	dirty = true
 	if not itemLink then
@@ -2554,6 +2565,7 @@ function addon:ClickedOnItem(itemButton, button)
 		elseif button == "RightButton" then
 			self:Debug(currentToon(), self:CanSendMail(), itemId)
 			if not self:CanSendMail() then
+				self:Debug("Cannot send mail", currentToon(), self:CanSendMail(), itemId)
 				return
 			end
 			self:Mail(itemId)

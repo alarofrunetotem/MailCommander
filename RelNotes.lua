@@ -11,6 +11,9 @@ You can make this selection permament, disabling some kind of items, or just che
 You can also use the "Send all" button to have all enabled items sent with a single click
 ]])
     self:HF_Paragraph('Release Notes')
+    self:RelNotes(2, 12, 0, [[
+Feature: Also scan reagent bag
+]])
     self:RelNotes(2, 11, 0, [[
 Fix: was getting stuck at "working"
 Toc: 120005

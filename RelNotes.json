@@ -1,5 +1,16 @@
 {
     "NOTES": {
+        "k021200": {
+            "major": "2",
+            "minor": "12",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Feature",
+                    "info": "Also scans reagent bag"
+                }
+            ]
+        },
         "k021100": {
             "major": "2",
             "minor": "11",

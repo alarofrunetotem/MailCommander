@@ -1,5 +1,20 @@
 {
     "NOTES": {
+        "k021100": {
+            "major": "2",
+            "minor": "11",
+            "patch": "0",
+            "description": [
+                {
+                    "tag": "Fix",
+                    "info": "was getting stuck at \"working\""
+                },
+                {
+                    "tag": "Toc",
+                    "info": "120005"
+                }
+            ]
+        },
         "k021000": {
             "major": "2",
             "minor": "10",

@@ -1,4 +1,4 @@
-## Interface: 120001
+## Interface: 120005
 ## Interface-Mists: 50503
 ## Interface-Cata: 40401, 40402
 ## Title: MailCommander 2 @project-version@

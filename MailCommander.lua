@@ -3047,17 +3047,17 @@ function addon:BuildAddContact()
 		whileDead = 1,
 		OnHide = function(self)
 			ChatEdit_FocusActiveWindow();
-			self.editBox:SetText("");
+			self:GetEditBox():SetText("");
 		end,
 		OnAccept = function(self, data)
-			_G.MailCommander:AddCustomToon(self.editBox:GetText())
-			self.editBox:SetText("");
+			_G.MailCommander:AddCustomToon(self:GetEditBox():GetText())
+			self:GetEditBox():SetText("");
 		end,
 		timeout = 0,
 		EditBoxOnEnterPressed = function(self, data)
 			local parent = self:GetParent();
-			local editBox = parent.editBox;
-			_G.MailCommander:AddCustomToon(self.editBox:GetText())
+			local editBox = parent:GetEditBox();
+			_G.MailCommander:AddCustomToon(editBox:GetText())
 			editBox:SetText("");
 			parent:Hide();
 		end,
@@ -3093,17 +3093,17 @@ function addon:BuildAddCategory()
 		whileDead = 1,
 		OnHide = function(self)
 			ChatEdit_FocusActiveWindow();
-			self.editBox:SetText("");
+			self:GetEditBox():SetText("");
 		end,
 		OnAccept = function(self, data)
-			_G.MailCommander:AddCustomCategory(self.editBox:GetText())
-			self.editBox:SetText("");
+			_G.MailCommander:AddCustomCategory(self:GetEditBox():GetText())
+			self:GetEditBox():SetText("");
 		end,
 		timeout = 0,
 		EditBoxOnEnterPressed = function(self, data)
 			local parent = self:GetParent();
-			local editBox = parent.editBox;
-			_G.MailCommander:AddCustomCategory(self.editBox:GetText())
+			local editBox = parent:GetEditBox();
+			_G.MailCommander:AddCustomCategory(editBox:GetText())
 			editBox:SetText("");
 			parent:Hide();
 		end,
@@ -3140,17 +3140,17 @@ function addon:BuildAddItemid()
 		whileDead = 1,
 		OnHide = function(self)
 			ChatEdit_FocusActiveWindow();
-			self.editBox:SetText("");
+			self:GetEditBox():SetText("");
 		end,
 		OnAccept = function(self, data)
-			_G.MailCommander:AddCustomItemid(self.editBox:GetText())
-			self.editBox:SetText("");
+			_G.MailCommander:AddCustomItemid(self:GetEditBox():GetText())
+			self:GetEditBox():SetText("");
 		end,
 		timeout = 0,
 		EditBoxOnEnterPressed = function(self, data)
 			local parent = self:GetParent();
-			local editBox = parent.editBox;
-			_G.MailCommander:AddCustomItemid(self.editBox:GetText())
+			local editBox = parent:GetEditBox();
+			_G.MailCommander:AddCustomItemid(editBox:GetText())
 			editBox:SetText("");
 			parent:Hide();
 		end,
